@@ -427,7 +427,7 @@ def parseTemplate(template, site):
         if pattern.search(line) is not None:
             break
 
-    pattern = re.compile(r"^\|\s*([^=]*)\s*=\s*(.+)\s*$")
+    pattern = re.compile(r"^\s*\|\s*([^=]*)\s*=\s*(.+)\s*$")
     for line in site:
         line = line.decode('utf-8')
         if re.match(r'\s*\}\}', line):
