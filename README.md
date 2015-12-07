@@ -65,8 +65,9 @@ Schreibt `text` in den Wikiartikel `article`. `opener` ist ein eingeloggter URL-
 ##### parseTemplate(template, site)
 Parst das erste Vorkommen der Vorlage template auf der Seite site (Rückgabe von openArticle()) und gibt ein Dictionary mit den Werten zurück.
 Das Auslesen der flugghischen Infobox geschieht z.B. wie folgt:
-`infobox = wiki.parseTemplate("Infobox Staat", wiki.openArticle("Flugghingen", opener))`
-
+```
+infobox = wiki.parseTemplate("Infobox Staat", wiki.openArticle("Flugghingen", opener))
+```
 
 
 ### IAS.py
