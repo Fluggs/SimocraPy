@@ -31,7 +31,7 @@ Gibt einen ins Wiki eingeloggten URL-Opener zurück.
 
 ##### readVZ()
 Liest das Wikiportal aus.
-Gibt ein Dictionary mit zwei Einträgen (staaten, buendnisse) zurück, welche wiederum eine Liste von Dictionaries enthält.
+Gibt ein Dictionary mit zwei Einträgen (`staaten`, `buendnisse`) zurück, welche wiederum eine Liste von Dictionaries enthält.
 Der Zugriff auf den Namen des (alphabetisch) ersten Staats im Portal sieht z.B. wie folgt aus:
 ```
 r = wiki.readVZ()
@@ -63,7 +63,7 @@ Schreibt `text` in den Wikiartikel `article`. `opener` ist ein eingeloggter URL-
 
 
 ##### parseTemplate(template, site)
-Parst das erste Vorkommen der Vorlage template auf der Seite site (Rückgabe von openArticle()) und gibt ein Dictionary mit den Werten zurück.
+Parst das erste Vorkommen der Vorlage template auf der Seite site (Rückgabe von `openArticle()`) und gibt ein Dictionary mit den Werten zurück.
 Das Auslesen der flugghischen Infobox geschieht z.B. wie folgt:
 ```
 infobox = wiki.parseTemplate("Infobox Staat", wiki.openArticle("Flugghingen", opener))
