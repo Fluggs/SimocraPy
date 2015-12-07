@@ -31,7 +31,7 @@ Gibt einen ins Wiki eingeloggten URL-Opener zurück.
 
 ##### readVZ()
 Liest das Wikiportal aus.
-Gibt ein Dictionary mit zwei Einträgen (`staaten`, `buendnisse`) zurück, welche wiederum eine Liste von Dictionaries enthält.
+Gibt ein Dictionary mit drei Einträgen (`staaten`, `buendnisse`, `spielerlos`) zurück, welche wiederum je eine Liste von Dictionaries enthalten.
 Der Zugriff auf den Namen des (alphabetisch) ersten Staats im Portal sieht z.B. wie folgt aus:
 ```
 r = wiki.readVZ()
