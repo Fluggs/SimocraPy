@@ -1,7 +1,7 @@
 # SimocraPy
 Pythontools für Simocracy (im Wesentlichen Wikistuff)
 
-## datum.py
+### datum.py
 Datumsrechner-Modul.
 Enthält die zwei Datumsrechner-Funktionen (RL->SY und SY->RL).
 Diese erwarten eine 5-stellige Liste mit dem Datum und gibt eine solche auch wieder zurück:
@@ -11,19 +11,25 @@ Liegt ein Datum nicht in der Simocracy-Epoche, wird die `SyEpocheException` gewo
 
 Keine Abhängigkeiten.
 
-### `rltosy(datum)`
+
+#### `rltosy(datum)`
 Konvertiert ein RL-Datum ins entsprechende SY-Datum.
 
-### `sytorl(datum)`
+
+#### `sytorl(datum)`
 Konvertiert ein SY-Datum ins entsprechende RL-Datum.
 
-## wiki.py
+
+
+### wiki.py
 Sammlung von Funktionen für das Arbeiten im Wiki.
 
-### `login(username, password)`
+
+#### `login(username, password)`
 Gibt einen ins Wiki eingeloggten URL-Opener zurück.
 
-### `readVZ()`
+
+#### `readVZ()`
 Liest das Wikiportal aus.
 Gibt ein Dictionary mit zwei Einträgen (staaten, buendnisse) zurück, welche wiederum eine Liste von Dictionaries enthält.
 Der Zugriff auf den Namen des (alphabetisch) ersten Staats im Portal sieht z.B. wie folgt aus:
@@ -45,21 +51,25 @@ Keywords der Staatenliste:
 buendnisse: array aus dicts; keys:
 * `flagge`
 * `name`
-* 
 
-### `openArticle(article, opener)`
+
+#### `openArticle(article, opener)`
 Öffnet einen Artikel (mithilfe von `opener.open()`); löst insb. Redirections auf.
 Erwartet den Artikelnamen und einen eingeloggten URL-opener (von `login()`) als Argumente.
 
-### `editArticle(article, text, opener)`
+
+#### `editArticle(article, text, opener)`
 Schreibt `text` in den Wikiartikel `article`. `opener` ist ein eingeloggter URL-opener (von `login()`).
 
-### `parseTemplate(template, site)`
+
+#### `parseTemplate(template, site)`
 Parst das erste Vorkommen der Vorlage template auf der Seite site (Rückgabe von openArticle()) und gibt ein Dictionary mit den Werten zurück.
 Das Auslesen der flugghischen Infobox geschieht z.B. wie folgt:
 `infobox = wiki.parseTemplate("Infobox Staat", wiki.openArticle("Flugghingen", opener))`
 
-## IAS.py
+
+
+### IAS.py
 Modul für das Internationale Amt für Statistiken. Enthät lediglich `updateArticle()` und dafür notwendige Hilfsfunktionen.
 `updateArticle()` loggt sich ins Wiki ein, liest das Wiki aus, liest die Infoboxen aller dort eingetragenen Staaten aus und updatet folgende Artikel:
 * [Vorlage:IAS](simocracy.de/Vorlage:IAS)
