@@ -428,9 +428,10 @@ def parseTemplate(template, site):
             break
 
     pattern = re.compile(r"^\s*\|\s*([^=]*)\s*=\s*(.+)\s*$")
+    pattern_end = re.compile(r"\}\}")
     for line in site:
         line = line.decode('utf-8')
-        if re.match(r'\s*\}\}', line):
+        if pattern_end.search(line):
             if dict == {}:
                 return None
             return dict
