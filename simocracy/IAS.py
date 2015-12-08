@@ -1,10 +1,12 @@
 # -*-coding: UTF-8 -*-
 
 import simocracy.wiki as wiki
-import re
+import re, sys
 import simocracy.datum as sydatum
 
 from datetime import datetime
+
+unknown = "Unbekannt"
 
 """
 ' 103.534.464,36 xyz' -> 103534454.36
@@ -43,8 +45,7 @@ def parseEwBip(staat):
     bip_ew = None
     ew = None
     bip = None
-    if "Einwohnerzahl" in staat["infobox"]:
-        ew = parseNumberToInt(staat["infobox"]["Einwohnerzahl"])
+    ew = parseNumberToInt(staat["infobox"]["Einwohnerzahl"])
     if "BIP-EW" in staat["infobox"]:
         bip_ew = parseNumberToInt(staat["infobox"]["BIP-EW"])
 
@@ -136,6 +137,31 @@ def normalizeWaehrung(s):
     return s
 
 """
+Normalisiert die Angabe der Amtssprache.
+"""
+def normalizeSprache(s):
+    return s
+
+"""
+Füllt Infobox-dicts mit unknown-Werten auf
+"""
+def fillInfobox(infobox):
+    keyList = [
+        "TLD",
+        "Amtssprache",
+        "KFZ",
+        "Zeitzone",
+        "Telefonvorwahl",
+        "Kürzel",
+    ]
+
+    for key in keyList:
+        if not key in infobox or infobox[key] is None:
+            infobox[key] = unknown
+
+    return infobox
+
+"""
 Erstellt eine Liste der drei meistgenutzten (nach f(w))
 Währungen in aufsteigender Reihenfolge:
 [
@@ -166,7 +192,6 @@ def sumUpWaehrung(w, f):
 
 
 def updateArticle():
-    unknown = "Unbekannt"
 
     #Infoboxen einlesen
     print("Lese Portal ein")
@@ -187,8 +212,13 @@ def updateArticle():
     print("Lese Infoboxen ein")
     for staat in alleStaaten:
         infobox = wiki.parseTemplate("Infobox Staat", wiki.openArticle(staat["uri"], opener))
+        infobox = fillInfobox(infobox)
         if not infobox == None:
             staat["infobox"] = infobox
+        #Stellt sicher, dass jeder Staatseintrag eine Infobox hat
+        else:
+            print("Warnung: "+staat["uri"]+" hat keine Infobox Staat", file=sys.stderr)
+            continue
     
     #Einzeleinträge aufsetzen
     #Jahr ausrechnen
@@ -218,7 +248,8 @@ def updateArticle():
         flaeche = None
         flaeche_int = None
         if not "infobox" in staat:
-            pass
+            print("Warnung - "+staat["uri"]+" hat keine Infobox")
+            continue
         elif "Fläche" in staat["infobox"]:
             flaeche = parseNumberToInt(staat["infobox"]["Fläche"])
             flaeche_int = flaeche
@@ -274,9 +305,7 @@ def updateArticle():
 
         #Währung
         waehrung = None
-        if not "infobox" in staat:
-            waehrung = unknown
-        elif "Währung" in staat["infobox"]:
+        if "Währung" in staat["infobox"]:
             waehrung = staat["infobox"]["Währung"]
             if waehrung is None or re.match(r'^\s*$', waehrung) is not None:
                 waehrung = unknown
@@ -290,12 +319,13 @@ def updateArticle():
             waehrung = unknown
         waehrung = normalizeWaehrung(waehrung)
         waehrung = waehrung.replace('[[#', '[['+staat['uri']+'#')
-        
+
+        #Amtssprache
+        sprache = normalizeSprache(staat["infobox"]["Amtssprache"])
         
         #Vorlagentext zusammensetzen: Statistik
         flagge = "Flagge-None.png"
-        if "infobox" in staat:
-            flagge = staat["infobox"]["Flagge"]
+        flagge = staat["infobox"]["Flagge"]
         eintrag = "{{IAS Eintrag Statistik\n"
         eintrag += "|Sortierungsname="+staat["sortname"]+"\n"
         eintrag += "|Flagge="+flagge+"\n"
@@ -310,23 +340,30 @@ def updateArticle():
 
         text_stats = text_stats + eintrag
 
-        #Vorlagentext zusammensrtzen: Allgemeine Informationen
-        if "infobox" in staat:
-            flagge = staat["infobox"]["Flagge"]
+        #Vorlagentext zusammensetzen: Allgemeine Informationen
+        flagge = staat["infobox"]["Flagge"]
         eintrag = "{{IAS Eintrag Info\n"
-        eintrag = eintrag+"|Sortierungsname="+staat["sortname"]+"\n"
-        eintrag = eintrag+"|Flagge="+flagge+"\n"
-        eintrag = eintrag+"|Name="+staat["name"]+"\n"
-        eintrag = eintrag+"|Artikel="+staat["uri"]+"\n"
-        eintrag = eintrag+"|TLD="+".fl"+"\n"
-        eintrag = eintrag+"|Vorwahl="+"+23"+"\n"
-        eintrag = eintrag+"|Amtssprache="+"aramäisch"+"\n"
-        eintrag = eintrag+"|Währung="+waehrung+"}}\n"
+        eintrag += "|Sortierungsname="+staat["sortname"]+"\n"
+        eintrag += "|Flagge="+flagge+"\n"
+        eintrag += "|Name="+staat["name"]+"\n"
+        eintrag += "|Artikel="+staat["uri"]+"\n"
+        eintrag += "|Kürzel="+staat["infobox"]["Kürzel"]+"\n"
+        eintrag += "|Amtssprache="+sprache+"\n"
+        eintrag += "|Währung="+waehrung+"\n"
+        eintrag += "|TLD="+staat["infobox"]["TLD"]+"\n"
+        eintrag += "|KFZ="+staat["infobox"]["KFZ"]+"\n"
+        if staat["infobox"] is None:
+            print(staat["uri"]+" hat keine infobox")
+        if staat["infobox"]["Telefonvorwahl"] is None:
+            print(staat["uri"]+" hat keine vorwahl")
+        eintrag += "|Vorwahl="+str(staat["infobox"]["Telefonvorwahl"])+"\n"
+        eintrag += "|Zeitzone="+staat["infobox"]["Zeitzone"]+"\n"
+        eintrag += "}}\n"
 
         text_info = text_info + eintrag
 
     #Allgemeine Statistiken
-    pre = "<onlyinclude>{{IAS Anfang Statistik\n"
+    pre = "<onlyinclude>{{IAS Anfang\n"
     pre += "|Jahr="+str(int(jahr))+"\n"
 
     flaeche_gesamt = 0
@@ -374,11 +411,16 @@ def updateArticle():
     pre += "|WährungEw3="+erg[0]["name"]+"\n"
     pre += "|WährungEwAnz3="+parseNumberToString(erg[0]["anz"])+"\n}}\n"
 
+    #IAS Anfang Statistik und Tabber
+    pre += "<Tabber>\nStatistiken={{IAS Anfang Statistik}}"
+
     text = pre + text_stats
-    text += "\n|}"
+    text += "\n|}\n"
+    text += "|-|\nWeitere Informationen="
     text += "{{IAS Anfang Info}}\n"
     text += text_info
     text += "|}\n"
+    text += "|-|</tabber>\n\n"
     text += "</onlyinclude>\n"
     text += "[[Kategorie:Internationales Amt für Statistiken]]"
     text += "[[Kategorie:Fluggbot]]"
