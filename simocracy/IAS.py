@@ -208,7 +208,10 @@ def updateArticle():
         "bip":[],
         "waehrung":[],
     }
-    text = ""
+
+    #Infotabellen-dicts auslesen und Vorlageneinträge zusammensetzen
+    text_stats = ""
+    text_info = ""
     for staat in alleStaaten:
         
         #Fläche
@@ -289,20 +292,42 @@ def updateArticle():
         waehrung = waehrung.replace('[[#', '[['+staat['uri']+'#')
         
         
-        #Vorlagentext zusammensetzen
+        #Vorlagentext zusammensetzen: Statistik
         flagge = "Flagge-None.png"
         if "infobox" in staat:
             flagge = staat["infobox"]["Flagge"]
-        eintrag = "{{IAS Eintrag\n|Sortierungsname="+staat["sortname"]+"\n"
-        eintrag = eintrag+"|Flagge="+flagge+"\n|Name="+staat["name"]+"\n"
-        eintrag = eintrag+"|Artikel="+staat["uri"]+"\n|Fläche="+flaeche+"\n"
-        eintrag = eintrag+"|Einwohnerzahl="+ew+"\n|EW-Fläche="+ew_flaeche+"\n"
-        eintrag = eintrag+"|BIP="+bip+"\n|BIP-EW="+bip_ew+"\n|Währung="+waehrung+"}}\n"
+        eintrag = "{{IAS Eintrag Statistik\n"
+        eintrag += "|Sortierungsname="+staat["sortname"]+"\n"
+        eintrag += "|Flagge="+flagge+"\n"
+        eintrag += "|Name="+staat["name"]+"\n"
+        eintrag += "|Artikel="+staat["uri"]+"\n"
+        eintrag += "|Fläche="+flaeche+"\n"
+        eintrag += "|Einwohnerzahl="+ew+"\n"
+        eintrag += "|EW-Fläche="+ew_flaeche+"\n"
+        eintrag += "|BIP="+bip+"\n"
+        eintrag += "|BIP-EW="+bip_ew+"\n"
+        eintrag += "}}\n"
 
-        text = text + eintrag
+        text_stats = text_stats + eintrag
+
+        #Vorlagentext zusammensrtzen: Allgemeine Informationen
+        if "infobox" in staat:
+            flagge = staat["infobox"]["Flagge"]
+        eintrag = "{{IAS Eintrag Info\n"
+        eintrag = eintrag+"|Sortierungsname="+staat["sortname"]+"\n"
+        eintrag = eintrag+"|Flagge="+flagge+"\n"
+        eintrag = eintrag+"|Name="+staat["name"]+"\n"
+        eintrag = eintrag+"|Artikel="+staat["uri"]+"\n"
+        eintrag = eintrag+"|TLD="+".fl"+"\n"
+        eintrag = eintrag+"|Vorwahl="+"+23"+"\n"
+        eintrag = eintrag+"|Amtssprache="+"aramäisch"+"\n"
+        eintrag = eintrag+"|Währung="+waehrung+"}}\n"
+
+        text_info = text_info + eintrag
 
     #Allgemeine Statistiken
-    pre = "<onlyinclude>{{IAS Anfang\n|Jahr="+str(int(jahr))+"\n"
+    pre = "<onlyinclude>{{IAS Anfang Statistik\n"
+    pre += "|Jahr="+str(int(jahr))+"\n"
 
     flaeche_gesamt = 0
     for el in gesamt["flaeche"]:
@@ -349,9 +374,14 @@ def updateArticle():
     pre += "|WährungEw3="+erg[0]["name"]+"\n"
     pre += "|WährungEwAnz3="+parseNumberToString(erg[0]["anz"])+"\n}}\n"
 
-    text = pre + text
-    text = text + "\n|}</onlyinclude>\n[[Kategorie:Internationales "
-    text += "Amt für Statistiken]][[Kategorie:Fluggbot]]"
+    text = pre + text_stats
+    text += "\n|}"
+    text += "{{IAS Anfang Info}}\n"
+    text += text_info
+    text += "|}\n"
+    text += "</onlyinclude>\n"
+    text += "[[Kategorie:Internationales Amt für Statistiken]]"
+    text += "[[Kategorie:Fluggbot]]"
     wiki.editArticle("Vorlage:IAS", text, opener)
 
     #Vorlage:Anzahl Staaten
