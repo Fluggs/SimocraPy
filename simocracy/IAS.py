@@ -140,7 +140,68 @@ def normalizeWaehrung(s):
 Normalisiert die Angabe der Amtssprache.
 """
 def normalizeSprache(s):
-    return s
+    #Kram in Klammern und kursives rauswerfen
+    patterns = [
+        re.compile(r'\(.*?\)'),
+        re.compile(r"''[^']*?''"),
+    ]
+    for p in patterns:
+        while True:
+            e = re.subn(p, "", s)
+            s = e[0].strip()
+            if e[1] == 0:
+                break
+
+    #Anhänge abhacken anhand von Signalstrings
+    signals = []
+    for el in [
+        #Signalstringliste
+        r'sowie',
+        r'diverse',
+        r'\+',
+    ]:
+        signals.append(re.compile(el+r'.*?$'))
+
+    for el in signals:
+        s = re.sub(el, "", s).strip()
+
+    #Einzelsprachen isolieren und normalisieren
+    trenner = []
+    for el in [
+        r",",
+        r";",
+        r"/",
+        r"&",
+        r"<br>",
+        r"und",
+    ]:
+        trenner.append(re.compile(el))
+
+    for el in trenner:
+        s = re.sub(el, ";", s)
+
+    s = re.split(";", s)
+    sprachen = []
+
+    for el in s:
+        el = el.strip()
+        if el == "":
+            continue
+
+        #Capitalize
+        el = el[0].upper() + el[1:]
+
+        sprachen.append(el)
+
+    s = ""
+    for el in sprachen:
+        s += " "+el+","
+
+    # Sonderregel für Neuseeland
+    s = re.sub(r"\s*mehrheitlich\s*", "", s)
+
+    #Erstes " " und letztes "," abhacken
+    return s[1:len(s)-1:1]
 
 """
 Füllt Infobox-dicts mit unknown-Werten auf
@@ -416,7 +477,7 @@ def updateArticle():
 
     text = pre + text_stats
     text += "\n|}\n"
-    text += "|-|\nWeitere Informationen="
+    text += "|-|\nWeitereInformationen="
     text += "{{IAS Anfang Info}}\n"
     text += text_info
     text += "|}\n"
