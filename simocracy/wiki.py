@@ -442,7 +442,7 @@ def parseTemplate(template, site):
             kvPair = re.findall(pattern, line)
             value = kvPair[0][1]
             if re.match(r'<!--(.*?)-->$', value):
-                dict[kvPair[0][0]] = None
+                continue
             else:
                 dict[kvPair[0][0]] = value
 
@@ -460,14 +460,17 @@ def globalizeLinks(s, article):
         if link["uri"].startswith("#"):
             link["uri"] = article + link["uri"]
         #Datei
-        if "filelink" in link and link["filelink"].startswith["#"]:
+        if "filelink" in link and link["filelink"].startswith("#"):
             link["filelink"] = article + link["filelink"]
 
         newLink = buildLink(link)
-        split = re.split(newLink, s)
+        s = s.replace(toRepl, newLink)
+        """
+        split = re.split(re.escape(newLink), s)
         s = split[0]
         for i in range(1, len(split)):
             s = newLink + split[i]
+        """
 
     return s
 

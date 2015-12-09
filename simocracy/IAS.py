@@ -240,7 +240,7 @@ def normalizeKFZ(s):
     s = remBrackets(s)
 
     #Trenner vereinheitlichen
-    s = re.sub("/", ", ", s)
+    s = s.replace("/", ", ")
 
     #Bilder skalieren
     size = 40
@@ -261,6 +261,30 @@ def normalizeKFZ(s):
                 s += newLink + split[i]
 
     return s
+
+"""
+Normalisiert Vorwahlangaben
+"""
+def normalizeVorwahl(s):
+    if s == unknown:
+        return s
+
+    s = remBrackets(s)
+
+    split = re.split(",", s)
+
+    #auf +xy-Angabe normalisieren
+    s = ""
+    for el in split:
+        el = el.strip()
+        if el.startswith("+"):
+            s += " "+el+","
+        elif el.startswith("00"):
+            s += " +"+el[2:]+","
+        else:
+            s += " +"+el+","
+
+    return s[1:len(s)-1:1]
 
 """
 Füllt Infobox-dicts mit unknown-Werten auf
@@ -331,7 +355,11 @@ def updateArticle():
 
     print("Lese Infoboxen ein")
     for staat in alleStaaten:
+        print("________________________")
         infobox = wiki.parseTemplate("Infobox Staat", wiki.openArticle(staat["uri"], opener))
+        for key in infobox:
+            print(str(infobox[key]) + "\n---------")
+            infobox[key] = wiki.globalizeLinks(infobox[key], staat["uri"])
         infobox = fillInfobox(infobox)
         if not infobox == None:
             staat["infobox"] = infobox
@@ -438,7 +466,6 @@ def updateArticle():
         else:
             waehrung = unknown
         waehrung = normalizeWaehrung(waehrung)
-        waehrung = waehrung.replace('[[#', '[['+staat['uri']+'#')
 
         #Amtssprache
         sprache = normalizeSprache(staat["infobox"]["Amtssprache"])
@@ -450,6 +477,9 @@ def updateArticle():
 
         #KFZ-Kennzeichen
         kfz = normalizeKFZ(staat["infobox"]["KFZ"])
+
+        #Vorwahl
+        vorwahl = normalizeVorwahl(staat["infobox"]["Telefonvorwahl"])
         
         #Vorlagentext zusammensetzen: Statistik
         flagge = "Flagge-None.png"
@@ -480,7 +510,7 @@ def updateArticle():
         eintrag += "|Währung="+waehrung+"\n"
         eintrag += "|TLD="+tld+"\n"
         eintrag += "|KFZ="+kfz+"\n"
-        eintrag += "|Vorwahl="+str(staat["infobox"]["Telefonvorwahl"])+"\n"
+        eintrag += "|Vorwahl="+vorwahl+"\n"
         eintrag += "|Zeitzone="+staat["infobox"]["Zeitzone"]+"\n"
         eintrag += "}}\n"
 
