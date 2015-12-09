@@ -64,7 +64,10 @@ Schreibt `text` in den Wikiartikel `article`. `opener` ist ein eingeloggter URL-
 
 ##### parseLinks(s)
 Gibt alle Wikilinks ([[ ... ]] im String s als Liste von dicts zurück:
-{ "name":<name des Links>, "uri":<Ziel des Links> }
+"name":<name des Links bzw. Größenangabe der Datei>,
+"uri":<Ziel des Links>,
+"misc":Liste von weiteren, durch | getrennte Angaben, wird z.B. bei Dateien verwendet
+"file":boolescher Wert; gibt an ob Link eine Datei ist
 
 
 ##### parseTemplate(template, site)

@@ -22,6 +22,13 @@ sortprefixes = [
     'Hl.',
 ]
 
+imageKeywords = [
+    'File:',
+    'Image:',
+    'Datei:',
+    'Bild:',
+]
+
 """
 Loggt den User ins Wiki ein.
 Gibt den eingeloggten URL-Opener zurueck.
@@ -445,20 +452,39 @@ def parseTemplate(template, site):
 
 """
 Gibt alle Wikilinks ([[ ... ]] im String s als Liste von dicts zurück:
-{ "name":<name des Links>, "uri":<Ziel des Links> }
+"name":<name des Links bzw. Größenangabe der Datei>,
+"uri":<Ziel des Links>,
+"misc":Liste von weiteren, durch | getrennte Angaben, wird z.B. bei Dateien verwendet
+"file":boolescher Wert; gibt an ob Link eine Datei ist
 """
 def parseLinks(s):
     e = re.findall(r"\[\[(.*?)\]\]", s)
     r = []
     for el in e:
-        a = re.split("\|", el)
-        if len(a) == 1:
-            r.append({"uri":a[0], "name":a[0]})
-        elif len(a) == 2:
-            r.append({"uri":a[0], "name":a[1]})
+        splitted = re.split("\|", el)
+        dict = {}
+        dict["uri"] = splitted[0]
+        if len(splitted) == 1:
+            dict["name"] = splitted[0]
+        elif len(splitted) > 1:
+            dict["name"] = splitted[1]
         else:
-            msg = "kann [["+el+"]] nicht verarbeiten"
-            raise Exception(msg)
+            raise Exception("keine Ahnung, was hier passiert ist")
+
+        #"misc" bestücken (=sonstigen Kram anhängen)
+        dict["misc"] = []
+        if len(splitted) > 2:
+            for i in range(2, len(splitted)):
+                dict["misc"].append(splitted[i])
+
+        #File check
+        dict["file"] = False
+        for el in imageKeywords:
+            if re.match(el, dict["uri"]):
+                dict["file"] = True
+                break
+
+        r.append(dict)
 
     return r
 
