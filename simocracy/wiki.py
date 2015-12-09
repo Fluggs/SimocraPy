@@ -443,6 +443,45 @@ def parseTemplate(template, site):
             else:
                 dict[kvPair[0][0]] = value
 
+"""
+Gibt alle Wikilinks ([[ ... ]] im String s als Liste von dicts zurück:
+{ "name":<name des Links>, "uri":<Ziel des Links> }
+"""
+def parseLinks(s):
+    e = re.findall(r"\[\[(.*?)\]\]", s)
+    r = []
+    for el in e:
+        a = re.split("\|", el)
+        if len(a) == 1:
+            r.append({"uri":a[0], "name":a[0]})
+        elif len(a) == 2:
+            r.append({"uri":a[0], "name":a[1]})
+        else:
+            msg = "kann [["+el+"]] nicht verarbeiten"
+            raise Exception(msg)
+
+    return r
+
+"""
+Ersetzt alle Wikilinks im String s durch den Namen des Links,
+d.h. entfernt alle Wikilinks.
+"""
+def removeLinks(s):
+    p = re.compile(r"\[\[.*?\]\]")
+
+    #schrittweise jeden Links entfernen
+    while True:
+        link = p.search(s)
+        if link is None:
+            break
+        link = link.group()
+
+        parsedLink = parseLinks(link)[0]
+        toDel = re.split(parsedLink["name"], link)
+        for el in toDel:
+            s = re.sub(re.escape(el), "", s, count=1)
+
+    return s
 
 """
 Schreibt den Text text in den Artikel article.

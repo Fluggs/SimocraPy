@@ -62,12 +62,22 @@ Erwartet den Artikelnamen und einen eingeloggten URL-opener (von `login()`) als 
 Schreibt `text` in den Wikiartikel `article`. `opener` ist ein eingeloggter URL-opener (von `login()`).
 
 
+##### parseLinks(s)
+Gibt alle Wikilinks ([[ ... ]] im String s als Liste von dicts zurück:
+{ "name":<name des Links>, "uri":<Ziel des Links> }
+
+
 ##### parseTemplate(template, site)
 Parst das erste Vorkommen der Vorlage template auf der Seite site (Rückgabe von `openArticle()`) und gibt ein Dictionary mit den Werten zurück.
 Das Auslesen der flugghischen Infobox geschieht z.B. wie folgt:
 ```
 infobox = wiki.parseTemplate("Infobox Staat", wiki.openArticle("Flugghingen", opener))
 ```
+
+
+##### removeLinks(s)
+Ersetzt alle Wikilinks im String s durch den Namen des Links,
+d.h. entfernt alle Wikilinks.
 
 
 ### IAS.py
