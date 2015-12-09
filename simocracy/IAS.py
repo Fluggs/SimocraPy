@@ -204,6 +204,39 @@ def normalizeSprache(s):
     return s[1:len(s)-1:1]
 
 """
+Normalisiert die TLD-Angabe s
+"""
+def normalizeTLD(s):
+    #Kram in Klammern und kursives rauswerfen
+    patterns = [
+        re.compile(r'\(.*?\)'),
+        re.compile(r"''[^']*?''"),
+    ]
+    for p in patterns:
+        while True:
+            e = re.subn(p, "", s)
+            s = e[0].strip()
+            if e[1] == 0:
+                break
+
+    #Trenner vereinheitlichen
+    trenner = [
+        re.compile(r"/"),
+        re.compile(r","),
+        re.compile(r"<br>"),
+    ]
+    for el in trenner:
+        s = re.sub(el, " ", s)
+
+    #TLD-Angaben rauspicken und String bauen
+    tokens = re.findall(r"(\.[^\s]*)", s)
+    s = ""
+    for el in tokens:
+        s += " " + el.strip().lower()
+
+    return s[1:]
+
+"""
 Füllt Infobox-dicts mit unknown-Werten auf
 """
 def fillInfobox(infobox):
@@ -383,6 +416,11 @@ def updateArticle():
 
         #Amtssprache
         sprache = normalizeSprache(staat["infobox"]["Amtssprache"])
+
+        #TLD
+        tld = normalizeTLD(staat["infobox"]["TLD"])
+        if tld is None or tld == "":
+            tld = unknown
         
         #Vorlagentext zusammensetzen: Statistik
         flagge = "Flagge-None.png"
@@ -411,12 +449,8 @@ def updateArticle():
         eintrag += "|Kürzel="+staat["infobox"]["Kürzel"]+"\n"
         eintrag += "|Amtssprache="+sprache+"\n"
         eintrag += "|Währung="+waehrung+"\n"
-        eintrag += "|TLD="+staat["infobox"]["TLD"]+"\n"
+        eintrag += "|TLD="+tld+"\n"
         eintrag += "|KFZ="+staat["infobox"]["KFZ"]+"\n"
-        if staat["infobox"] is None:
-            print(staat["uri"]+" hat keine infobox")
-        if staat["infobox"]["Telefonvorwahl"] is None:
-            print(staat["uri"]+" hat keine vorwahl")
         eintrag += "|Vorwahl="+str(staat["infobox"]["Telefonvorwahl"])+"\n"
         eintrag += "|Zeitzone="+staat["infobox"]["Zeitzone"]+"\n"
         eintrag += "}}\n"
