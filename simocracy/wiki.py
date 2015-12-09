@@ -24,9 +24,13 @@ sortprefixes = [
 
 imageKeywords = [
     'File:',
+    'file:',
     'Image:',
+    'image:',
     'Datei:',
+    'datei:',
     'Bild:',
+    'bild:',
 ]
 
 """
@@ -364,12 +368,8 @@ def extractFlag(flagcode, urlopener):
                 break
         
         #Regex
-        line = line.replace("Datei:", "")
-        line = line.replace("datei:", "")
-        line = line.replace("Bild:", "")
-        line = line.replace("bild:", "")
-        line = line.replace("Image:", "")
-        line = line.replace("image:", "")
+        for el in imageKeywords:
+            line = line.replace(el, '')
         pattern = re.compile(r"\[\[(.+?)\|.+?\]\]")
         flagcode = re.findall(pattern, line)[0]
 
@@ -377,12 +377,8 @@ def extractFlag(flagcode, urlopener):
     elif re.match(r'\[\[', flagcode) is not None:
         flagcode = flagcode.replace('[[', '')
         flagcode = flagcode.replace(']]', '')
-        flagcode = flagcode.replace('Image:', '')
-        flagcode = flagcode.replace('image:', '')
-        flagcode = flagcode.replace('Bild:', '')
-        flagcode = flagcode.replace('bild:', '')
-        flagcode = flagcode.replace('Datei:', '')
-        flagcode = flagcode.replace('datei:', '')
+        for el in imageKeywords:
+            flagcode = flagcode.replace(el, '')
         values = flagcode.split('|')
         flagcode = values[0]
     #kaputt
@@ -451,42 +447,83 @@ def parseTemplate(template, site):
                 dict[kvPair[0][0]] = value
 
 """
+Macht alle lokalen Links in s global.
+Nimmt article als Artikelnamen für die lokalen Links an.
+Berücksichtigt auch Dateilinks, z.B.
+[[Datei:file.png|30px|link=#whatever]]
+"""
+def globalizeLinks(s, article):
+    links = parseLinks(s)
+    for link in links:
+        toRepl = buildLink(link)
+
+        if link["uri"].startswith("#"):
+            link["uri"] = article + link["uri"]
+        #Datei
+        if "filelink" in link and link["filelink"].startswith["#"]:
+            link["filelink"] = article + link["filelink"]
+
+        newLink = buildLink(link)
+        split = re.split(newLink, s)
+        s = split[0]
+        for i in range(1, len(split)):
+            s = newLink + split[i]
+
+    return s
+
+"""
 Gibt alle Wikilinks ([[ ... ]] im String s als Liste von dicts zurück:
-"name":<name des Links bzw. Größenangabe der Datei>,
-"uri":<Ziel des Links>,
-"misc":Liste von weiteren, durch | getrennte Angaben, wird z.B. bei Dateien verwendet
+
+Zwingend vorhanden:
+"uri":<Ziel des Links>
 "file":boolescher Wert; gibt an ob Link eine Datei ist
+
+Vorhanden, falls im Link vorhanden:
+"filelink":<Link der "belinkten" Datei (|link=<filelink>)>
+"name":<name des Links bzw. Größenangabe der Datei>
 """
 def parseLinks(s):
     e = re.findall(r"\[\[(.*?)\]\]", s)
     r = []
     for el in e:
-        splitted = re.split("\|", el)
+        split = re.split("\|", el)
         dict = {}
-        dict["uri"] = splitted[0]
-        if len(splitted) == 1:
-            dict["name"] = splitted[0]
-        elif len(splitted) > 1:
-            dict["name"] = splitted[1]
-        else:
-            raise Exception("keine Ahnung, was hier passiert ist")
-
-        #"misc" bestücken (=sonstigen Kram anhängen)
-        dict["misc"] = []
-        if len(splitted) > 2:
-            for i in range(2, len(splitted)):
-                dict["misc"].append(splitted[i])
+        dict["uri"] = split[0]
+        if len(split) > 1:
+            if not split[1].startswith("link="):
+                dict["name"] = split[1]
 
         #File check
         dict["file"] = False
         for el in imageKeywords:
-            if re.match(el, dict["uri"]):
+            if dict["uri"].startswith(el):
                 dict["file"] = True
                 break
+
+        #File link
+        if dict["file"] and len(split) > 1:
+            for i in range(1, len(split)):
+                if split[i].startswith("link="):
+                    link = split[i].replace("link=", "")
+                    dict["filelink"] = link
+                    break
 
         r.append(dict)
 
     return r
+
+"""
+Baut einen Link-String aus einem dict wie in parseLinks() zusammen.
+"""
+def buildLink(link):
+    r = "[[" + link["uri"]
+    if "name" in link:
+        r += "|" + link["name"]
+
+    if link["file"] and "filelink" in link:
+        r += "|link=" + link["filelink"]
+
+    return r + "]]"
 
 """
 Ersetzt alle Wikilinks im String s durch den Namen des Links,

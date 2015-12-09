@@ -99,6 +99,23 @@ def extractWaehrung(s):
     return re.split(r'([^({\d=]*)', s)[1].strip()
 
 """
+Entfernt Klammerinhalte sowie kursives Zeug aus s.
+"""
+def remBrackets(s):
+    patterns = [
+        re.compile(r'\(.*?\)'),
+        re.compile(r"''[^']*?''"),
+    ]
+    for p in patterns:
+        while True:
+            e = re.subn(p, "", s)
+            s = e[0].strip()
+            if e[1] == 0:
+                break
+
+    return s
+
+"""
 Normalisiert die Währungsangabe
 """
 def normalizeWaehrung(s):
@@ -140,17 +157,7 @@ def normalizeWaehrung(s):
 Normalisiert die Angabe der Amtssprache.
 """
 def normalizeSprache(s):
-    #Kram in Klammern und kursives rauswerfen
-    patterns = [
-        re.compile(r'\(.*?\)'),
-        re.compile(r"''[^']*?''"),
-    ]
-    for p in patterns:
-        while True:
-            e = re.subn(p, "", s)
-            s = e[0].strip()
-            if e[1] == 0:
-                break
+    s = remBrackets(s)
 
     #Anhänge abhacken anhand von Signalstrings
     signals = []
@@ -207,17 +214,7 @@ def normalizeSprache(s):
 Normalisiert die TLD-Angabe s
 """
 def normalizeTLD(s):
-    #Kram in Klammern und kursives rauswerfen
-    patterns = [
-        re.compile(r'\(.*?\)'),
-        re.compile(r"''[^']*?''"),
-    ]
-    for p in patterns:
-        while True:
-            e = re.subn(p, "", s)
-            s = e[0].strip()
-            if e[1] == 0:
-                break
+    s = remBrackets(s)
 
     #Trenner vereinheitlichen
     trenner = [
@@ -235,6 +232,35 @@ def normalizeTLD(s):
         s += " " + el.strip().lower()
 
     return s[1:]
+
+"""
+Normalisiert KFZ-Kennzeichenangaben
+"""
+def normalizeKFZ(s):
+    s = remBrackets(s)
+
+    #Trenner vereinheitlichen
+    s = re.sub("/", ", ", s)
+
+    #Bilder skalieren
+    size = 40
+    links = wiki.parseLinks(s)
+    for link in links:
+        if link["file"]:
+            toRepl = wiki.buildLink(link)
+            newLink = "[["+link["uri"]
+            newLink += "|" + str(size) + "px"
+            if "filelink" in link:
+                newLink += "|link=" + link["filelink"]
+            newLink += "]]"
+
+            #replace
+            split = re.split(re.escape(toRepl), s)
+            s = split[0]
+            for i in range(1, len(split)):
+                s += newLink + split[i]
+
+    return s
 
 """
 Füllt Infobox-dicts mit unknown-Werten auf
@@ -421,6 +447,9 @@ def updateArticle():
         tld = normalizeTLD(staat["infobox"]["TLD"])
         if tld is None or tld == "":
             tld = unknown
+
+        #KFZ-Kennzeichen
+        kfz = normalizeKFZ(staat["infobox"]["KFZ"])
         
         #Vorlagentext zusammensetzen: Statistik
         flagge = "Flagge-None.png"
@@ -450,7 +479,7 @@ def updateArticle():
         eintrag += "|Amtssprache="+sprache+"\n"
         eintrag += "|Währung="+waehrung+"\n"
         eintrag += "|TLD="+tld+"\n"
-        eintrag += "|KFZ="+staat["infobox"]["KFZ"]+"\n"
+        eintrag += "|KFZ="+kfz+"\n"
         eintrag += "|Vorwahl="+str(staat["infobox"]["Telefonvorwahl"])+"\n"
         eintrag += "|Zeitzone="+staat["infobox"]["Zeitzone"]+"\n"
         eintrag += "}}\n"

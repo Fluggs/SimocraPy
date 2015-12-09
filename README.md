@@ -62,12 +62,27 @@ Erwartet den Artikelnamen und einen eingeloggten URL-opener (von `login()`) als 
 Schreibt `text` in den Wikiartikel `article`. `opener` ist ein eingeloggter URL-opener (von `login()`).
 
 
+##### globalizeLinks(s, article)
+Macht alle lokalen Links in s global.
+Nimmt article als Artikelnamen für die lokalen Links an.
+Berücksichtigt auch Dateilinks, z.B.
+[[Datei:file.png|30px|link=#whatever]]
+
+
 ##### parseLinks(s)
 Gibt alle Wikilinks ([[ ... ]] im String s als Liste von dicts zurück:
-"name":<name des Links bzw. Größenangabe der Datei>,
-"uri":<Ziel des Links>,
-"misc":Liste von weiteren, durch | getrennte Angaben, wird z.B. bei Dateien verwendet
+
+Zwingend vorhanden:
+"uri":<Ziel des Links>
 "file":boolescher Wert; gibt an ob Link eine Datei ist
+
+Vorhanden, falls im Link vorhanden:
+"filelink":<Link der "belinkten" Datei (|link=<filelink>)>
+"name":<name des Links bzw. Größenangabe der Datei>
+
+
+##### buildLink(s)
+Baut einen Link-String aus einem dict wie in parseLinks() zusammen.
 
 
 ##### parseTemplate(template, site)
