@@ -287,6 +287,54 @@ def normalizeVorwahl(s):
     return s[1:len(s)-1:1]
 
 """
+Hilfsfunktion für normalizeZeitzone()
+"""
+def remWhitespace(matchobject):
+    return re.sub("\s+", "", matchobject.group())
+
+"""
+Normalisiert Zeitzonenangaben
+"""
+def normalizeZeitzone(s):
+    if s == unknown:
+        return s
+
+    s = remBrackets(s)
+    trenner = [
+        "/",
+        "und",
+        "<br>",
+    ]
+    for el in trenner:
+        s = s.replace(el, ",")
+
+    s = s.replace("GMT", "UTC")
+
+    s = re.sub(r"UTC\s*\+", "+", s)
+    s = re.sub(r"UTC\s*-", "-", s)
+
+    #"UTC" => "+0"
+    s = re.sub(r"UTC\s*[^+\-\s]?", r"+0,", s)
+
+    s = s.replace("UTC", "")
+
+    #"+ 1" => "+1"
+    s = re.sub("[+-]\s+\d*", remWhitespace, s)
+
+    #Whitespaces normalisieren
+    s = re.sub(r"\s{2,}", " ", s)
+
+    #Splitten und wieder zusammensetzen
+    split = re.split(r",", s)
+    s = ""
+    for el in split:
+        if el == '' or re.match(r"\s*$", el):
+            continue
+        s += " " + el.strip() + ","
+
+    return s[1:len(s)-1:1]
+
+"""
 Füllt Infobox-dicts mit unknown-Werten auf
 """
 def fillInfobox(infobox):
@@ -355,10 +403,8 @@ def updateArticle():
 
     print("Lese Infoboxen ein")
     for staat in alleStaaten:
-        print("________________________")
         infobox = wiki.parseTemplate("Infobox Staat", wiki.openArticle(staat["uri"], opener))
         for key in infobox:
-            print(str(infobox[key]) + "\n---------")
             infobox[key] = wiki.globalizeLinks(infobox[key], staat["uri"])
         infobox = fillInfobox(infobox)
         if not infobox == None:
@@ -480,6 +526,9 @@ def updateArticle():
 
         #Vorwahl
         vorwahl = normalizeVorwahl(staat["infobox"]["Telefonvorwahl"])
+
+        #Zeitzone
+        zeitzone = normalizeZeitzone(staat["infobox"]["Zeitzone"])
         
         #Vorlagentext zusammensetzen: Statistik
         flagge = "Flagge-None.png"
@@ -511,7 +560,7 @@ def updateArticle():
         eintrag += "|TLD="+tld+"\n"
         eintrag += "|KFZ="+kfz+"\n"
         eintrag += "|Vorwahl="+vorwahl+"\n"
-        eintrag += "|Zeitzone="+staat["infobox"]["Zeitzone"]+"\n"
+        eintrag += "|Zeitzone="+zeitzone+"\n"
         eintrag += "}}\n"
 
         text_info = text_info + eintrag
