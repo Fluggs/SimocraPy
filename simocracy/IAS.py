@@ -165,27 +165,25 @@ def normalizeSprache(s):
         #Signalstringliste
         r'sowie',
         r'diverse',
-        r'\+',
+        r'+',
     ]:
         signals.append(re.compile(el+r'.*?$'))
 
     for el in signals:
-        s = re.sub(el, "", s).strip()
+        s = s.replace(el, "").strip()
 
     #Einzelsprachen isolieren und normalisieren
-    trenner = []
-    for el in [
+    trenner = [
         r",",
         r";",
         r"/",
         r"&",
         r"<br>",
         r"und",
-    ]:
-        trenner.append(re.compile(el))
+    ]
 
     for el in trenner:
-        s = re.sub(el, ";", s)
+        s = s.replace(el, ";")
 
     s = re.split(";", s)
     sprachen = []
@@ -218,12 +216,12 @@ def normalizeTLD(s):
 
     #Trenner vereinheitlichen
     trenner = [
-        re.compile(r"/"),
-        re.compile(r","),
-        re.compile(r"<br>"),
+        "/",
+        ",",
+        "<br>",
     ]
     for el in trenner:
-        s = re.sub(el, " ", s)
+        s = s.replace(el, " ")
 
     #TLD-Angaben rauspicken und String bauen
     tokens = re.findall(r"(\.[^\s]*)", s)
