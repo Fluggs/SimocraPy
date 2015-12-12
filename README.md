@@ -70,15 +70,15 @@ Berücksichtigt auch Dateilinks, z.B.
 
 
 ##### parseLinks(s)
-Gibt alle Wikilinks ([[ ... ]] im String s als Liste von dicts zurück:
+Gibt alle Wikilinks (`[[ ... ]]`) im String s als Liste von dicts zurück:
 
 Zwingend vorhanden:
-"uri":<Ziel des Links>
-"file":boolescher Wert; gibt an ob Link eine Datei ist
+`"uri"`:Ziel des Links
+`"file"`:boolescher Wert; gibt an, ob Link eine Datei ist
 
 Vorhanden, falls im Link vorhanden:
-"filelink":<Link der "belinkten" Datei (|link=<filelink>)>
-"name":<name des Links bzw. Größenangabe der Datei>
+`"filelink"`:Link der "belinkten" Datei (|link=filelink)
+`"name"`:Name des Links bzw. Größenangabe der Datei
 
 
 ##### buildLink(s)
