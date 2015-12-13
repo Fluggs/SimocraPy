@@ -167,7 +167,7 @@ def normalizeSprache(s):
         r'diverse',
         r'+',
     ]:
-        signals.append(re.compile(el+r'.*?$'))
+        signals.append(el+r'.*?$')
 
     for el in signals:
         s = s.replace(el, "").strip()
