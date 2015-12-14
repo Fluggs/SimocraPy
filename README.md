@@ -48,6 +48,7 @@ Keywords der Staatenliste:
 * `as`
 * `spieler`
 * `zweitstaat` (Boolescher Wert)
+
 buendnisse: array aus dicts; keys:
 * `flagge`
 * `name`
