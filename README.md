@@ -38,7 +38,7 @@ r = wiki.readVZ()
 name = r["staaten"][0]["name"]
 ```
 
-Keywords der Staatenliste:
+Keys von `staaten` und `spielerlos`:
 * `nummer`
 * `flagge` (bild-URL)
 * `name`
@@ -49,7 +49,7 @@ Keywords der Staatenliste:
 * `spieler`
 * `zweitstaat` (Boolescher Wert)
 
-buendnisse: array aus dicts; keys:
+Keys `buendnisse`:
 * `flagge`
 * `name`
 
