@@ -364,7 +364,7 @@ def extractFlag(flagcode, urlopener):
 
         for line in response:
             line = line.decode('utf-8')
-            if re.match(r'include>', line):
+            if re.search(r'include>', line):
                 break
         
         #Regex
