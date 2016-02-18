@@ -9,7 +9,7 @@ import simocracy.credentials as credentials
 username = credentials.username
 password = credentials.password
 
-url = 'http://simocracy.de/'
+url = 'https://simocracy.de/'
 vz = "Wikocracy:Portal"
 sortprefixes = [
     'Königreich',
