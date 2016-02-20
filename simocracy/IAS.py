@@ -415,14 +415,14 @@ def updateArticle():
     #Einzeleinträge aufsetzen
     #Jahr ausrechnen
     heute = datetime.now()
-    datum = [
-        int(heute.day),
-        int(heute.month),
-        int(heute.year),
-        int(heute.hour),
-        int(heute.minute)
-    ]
-    jahr = sydatum.rltosy(datum)[2]
+    datum = {
+        "tag"    : int(heute.day),
+        "monat"  : int(heute.month),
+        "jahr"   : int(heute.year),
+        "stunde" : int(heute.hour),
+        "minute" : int(heute.minute)
+    }
+    jahr = sydatum.rltosy(datum)["jahr"]
 
     gesamt = {
         "flaeche":[],

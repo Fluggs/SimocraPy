@@ -2,6 +2,16 @@
 # -*- coding: UTF-8 -*-
 
 """
+Datumsformat:
+{
+  "tag":tag,
+  "monat":monat,
+  "jahr":jahr,
+  "stunde":stunde,
+  "minute":minute,
+}
+
+"""
 Wird geworfen, wenn ein Datum nicht in der Simocracy-Epoche liegt.
 """
 class SyEpocheException(Exception):
@@ -46,47 +56,58 @@ def isSchaltjahr(jahr):
     return False
 
 """
+Wirft Exception, wenn datum kein valides Datum n. greg. Kalender ist.
+"""
+def isValidDatum(datum):
+    msg = "Angegebenes Datum ist ungültig."
+
+    if not (
+      "tag" in datum
+      and "monat" in datum
+      and "jahr" in datum
+      and "stunde" in datum
+      and "minute" in datum
+    ):
+        raise Exception(msg)
+
+    tag = datum["tag"] > monatLen(datum["monat"], datum["jahr"])
+    tag = tag or datum["tag"] < 1
+    monat = datum["monat"] < 1
+    monat = monat or datum["monat"] > 12
+    stunde = datum["stunde"] < 0 or datum["stunde"] > 23
+    minute = datum["minute"] < 0 or datum["minute"] > 23
+
+    if tag or monat or stunde:
+        raise Exception(msg)
+    
+
+"""
 Konvertiert ein RL-Datum zum zugehörigen SY-Datum.
-return [ syTag, syMonat, syJahr, syStunde, syMinute ]
 """
 def rltosy(datum):
-    
-    if len(datum) < 5:
-        raise Exception("Zu wenige Elemente in datum")
-    
-    tag = datum[0]
-    monat = datum[1]
-    jahr = datum[2]
-    stunde = datum[3]
-    minute = datum[4]
-    
     # Input checken
-    if jahr < 2008 or ( jahr == 2008 and monat < 10 ):
-        raise SyEpocheException("jahr: " + str(jahr) + "; monat: " + str(monat))
-    
-    elif (monat > 12 or monat < 1
-      or tag > monatLen(monat, jahr) or tag < 1
-      or stunde < 0 or stunde > 23
-      or minute < 0 or minute > 59):
-        raise Exception("Angegebenes Datum ist ungültig")
+    isValidDatum(datum)
+    epochIn08 = datum["jahr"] == 2008 and datum["monat"] < 10
+    if datum["jahr"] < 2008 or epochIn08:
+        raise SyEpocheException(datum)
     
     # Monate des Quartals (= Sy-Jahr) sammeln
-    quartalsanfang = monat - ( monat + 2 ) % 3
+    quartalsanfang = datum["monat"] - ( datum["monat"] + 2 ) % 3
     quartal = []
-    for i in range(quartalsanfang, monat):
+    for i in range(quartalsanfang, datum["monat"]):
         quartal.append(i)
         
     # SY-Jahr berechnen
-    syJahr = ( jahr - 2008 ) * 4 + 2017
+    syJahr = ( datum["jahr"] - 2008 ) * 4 + 2017
     syJahr += quartalsanfang / 3
         
     # Vergangene Tage im Quartal zusammenaddieren
-    tage = tag - 1
+    tage = datum["tag"] - 1
     for i in quartal:
-        tage += monatLen(i, jahr)
+        tage += monatLen(i, datum["jahr"])
         
     # Bisherige Minuten des Quartals
-    minuten = tage*24*60 + stunde*60 + minute
+    minuten = tage*24*60 + datum["stunde"]*60 + datum["minute"]
     
     # In SY-Minuten umrechnen
     schalttag = 0
@@ -97,7 +118,7 @@ def rltosy(datum):
     
     quartalMins = 0
     for i in range(quartalsanfang, quartalsanfang + 3):
-        quartalMins += monatLen(i, jahr) * 24 * 60
+        quartalMins += monatLen(i, datum["jahr"]) * 24 * 60
         
     sydatumMins = int(float(minuten) * (float(syjahrMins) / float(quartalMins)))
     
@@ -117,46 +138,36 @@ def rltosy(datum):
     
     syTag = sydatumTag - volleMonate
     
-    return [ syTag, syMonat, syJahr, syStunde, syMinute ]
+    return {
+        "tag"    : syTag,
+        "monat"  : syMonat,
+        "jahr"   : syJahr,
+        "stunde" : syStunde,
+        "minute" : syMinute,
+    }
 
 """
 Konvertiert ein SY-Datum zum RL-Datum.
 Erwartet 5-elementige Liste als Argument.
-return [ rlTag, rlMonat, rlJahr, rlStunde, rlMinute ]
 """
 def sytorl(datum):
-    
-    if len(datum) < 5:
-        raise Exception("Zu wenige Elemente in datum")
-    
-    tag = datum[0]
-    monat = datum[1]
-    jahr = datum[2]
-    stunde = datum[3]
-    minute = datum[4]
-    
     # Input checken
-    if jahr < 2020:
+    isValidDatum(datum)
+    if datum["jahr"] < 2020:
         raise SyEpocheException()
-    
-    elif (monat > 12 or monat < 1
-      or tag > monatLen(monat, jahr) or tag < 1
-      or stunde < 0 or stunde > 23
-      or minute < 0 or minute > 59):
-        raise Exception("Angegebenes Datum ist ungültig")
     
     # Jahr und Quartal berechnen
     quartalNr = ( jahr - 1 ) % 4 # Zaehlung beginnt bei 0
     rlJahr = ( jahr - 2017 ) / 4 + 2008
     
     # Minuten zusammenaddieren
-    minuten = (tag - 1) * 24 * 60 + stunde * 60 + minute
-    for i in range(1, monat):
-        minuten += monatLen(i, jahr) * 24 * 60
+    minuten = (tag - 1) * 24 * 60 + datum["stunde"] * 60 + datum["minute"]
+    for i in range(1, datum["monat"]):
+        minuten += monatLen(i, datum["jahr"]) * 24 * 60
     
     # Minuten des gesamten Jahres berechnen
     schalttag = 0
-    if isSchaltjahr(jahr):
+    if isSchaltjahr(datum["jahr"]):
         schalttag = 1
     syjahrMins = ( 365 + schalttag ) * 24 * 60
     
@@ -194,5 +205,11 @@ def sytorl(datum):
             rlMonat += 1
             rlTag = 1
     
-    return [ rlTag, rlMonat, rlJahr, rlStunde, rlMinute ]
+    return {
+        "tag"    : rlTag,
+        "monat"  : rlMonat,
+        "jahr"   : rlJahr,
+        "stunde" : rlStunde,
+        "minute" : rlMinute,
+    }
 
