@@ -10,6 +10,7 @@ Datumsformat:
   "stunde":stunde,
   "minute":minute,
 }
+"""
 
 """
 Wird geworfen, wenn ein Datum nicht in der Simocracy-Epoche liegt.
