@@ -76,7 +76,7 @@ def isValidDatum(datum):
     monat = datum["monat"] < 1
     monat = monat or datum["monat"] > 12
     stunde = datum["stunde"] < 0 or datum["stunde"] > 23
-    minute = datum["minute"] < 0 or datum["minute"] > 23
+    minute = datum["minute"] < 0 or datum["minute"] > 59
 
     if tag or monat or stunde:
         raise Exception(msg)
