@@ -13,7 +13,7 @@ simulation = True
 loglevel = "line"
 
 # Ersatz für LD-Host-Links
-replacement = "hier war ein LD-Host-Link"
+replacement = "{{LD-Host-Replacer}}"
 # Kommt vor jeden Artikel, wo was ersetzt wurde
 notif = "{{LD-Host}}"
 ############
@@ -34,7 +34,7 @@ def replaceAll(sub, repl, s):
             return s
 
 def doIt(article, opener):
-    ldhost = re.compile(r'(\[?\[?\s*(http://)?(www.)?ld-host.de/[/\w]*?\.[a-z][a-z][a-z]\s*\]?\]?)')
+    ldhost = re.compile(r'((Thumb=)?\[?\[?\s*(http://)?(www.)?ld-host.de/[/\w]*?\.[a-z][a-z][a-z]\s*\]?\]?)')
     found = False
     text = ""
     logs = ""
@@ -44,7 +44,7 @@ def doIt(article, opener):
         m = ldhost.findall(newLine)
         foundList = []
         for el in m:
-            foundList.append(el[0])
+            foundList.append(el)
 
         #nichts gefunden
         if foundList == []:
@@ -55,7 +55,11 @@ def doIt(article, opener):
 
         #ersetzen
         for el in foundList:
-            newLine = replaceAll(el, replacement, newLine)
+            #Bildboxen berücksichtigen
+            if not 'Thumb=' in el:
+                newLine = replaceAll(el[0], replacement, newLine)
+            else:
+                newLine = replaceAll(el[0], "Thumb=", newLine)
 
         text = text + newLine + "\n"
 
