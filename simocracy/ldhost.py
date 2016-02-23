@@ -27,7 +27,7 @@ def replaceAll(sub, repl, s):
             return s
 
 def doIt(article, opener):
-    replacement = re.escape("hier war ein LD-Host-Link")
+    replacement = "hier war ein LD-Host-Link"
     notif = re.escape("{{LD-Host|--~~~~}}")
     ldhost = re.compile(r'((http://)?(www.)?ld-host.de/[/\w]*?\.[a-z][a-z][a-z])')
     found = False
@@ -63,6 +63,8 @@ def doIt(article, opener):
 
         if not simulation:
             wiki.editArticle(article, text, opener)
+            print("Done: "+article)
+
         #Simulation
         else:
             print("[[" + article + "]]")
