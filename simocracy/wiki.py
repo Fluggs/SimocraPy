@@ -68,6 +68,21 @@ def login(username, password):
     return opener
 
 """
+Generator für alle Wikiseiten
+"""
+def allPages(opener):
+    response = opener.open(url+'api.php?action=query&list=allpages&aplimit=5000&format=xml')
+
+    #Leerzeile ueberspringen
+    response.readline()
+
+    #XML einlesen
+    xml = ET.fromstring(response.readline())
+
+    for page in xml.iter('p'):
+        yield page.attrib['title']
+
+"""
 Liest Staaten und Bündnisse aus dem
 Verzeichnis-Seitentext site aus und packt sie in ein dict.
 Keys: staaten, buendnisse
