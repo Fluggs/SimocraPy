@@ -14,6 +14,8 @@ loglevel = "line"
 
 # Ersatz für LD-Host-Links
 replacement = "hier war ein LD-Host-Link"
+# Kommt vor jeden Artikel, wo was ersetzt wurde
+notif = "{{LD-Host}}"
 ############
 
 
@@ -32,8 +34,7 @@ def replaceAll(sub, repl, s):
             return s
 
 def doIt(article, opener):
-    notif = re.escape("{{LD-Host|--~~~~}}")
-    ldhost = re.compile(r'((http://)?(www.)?ld-host.de/[/\w]*?\.[a-z][a-z][a-z])')
+    ldhost = re.compile(r'(\[?\[?\s*(http://)?(www.)?ld-host.de/[/\w]*?\.[a-z][a-z][a-z]\s*\]?\]?)')
     found = False
     text = ""
     logs = ""
