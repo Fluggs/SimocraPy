@@ -5,10 +5,15 @@ import simocracy.wiki as wiki
 import re
 
 ## config ##
+#Möglichkeit zur Simulation des Vorgangs
 simulation = True
+
 #Loglevel: schreibe nur geänderte Zeilen ("line") oder
 #          ganze geänderte Artikel ("article") auf stdin
 loglevel = "line"
+
+# Ersatz für LD-Host-Links
+replacement = "hier war ein LD-Host-Link"
 ############
 
 
@@ -27,7 +32,6 @@ def replaceAll(sub, repl, s):
             return s
 
 def doIt(article, opener):
-    replacement = "hier war ein LD-Host-Link"
     notif = re.escape("{{LD-Host|--~~~~}}")
     ldhost = re.compile(r'((http://)?(www.)?ld-host.de/[/\w]*?\.[a-z][a-z][a-z])')
     found = False
