@@ -56,10 +56,10 @@ def doIt(article, opener):
         #ersetzen
         for el in foundList:
             #Bildboxen berücksichtigen
-            if not 'Thumb=' in el:
-                newLine = replaceAll(el[0], replacement, newLine)
-            else:
+            if 'Thumb=' in el:
                 newLine = replaceAll(el[0], "Thumb=", newLine)
+            else:
+                newLine = replaceAll(el[0], replacement, newLine)
 
         text = text + newLine + "\n"
 
