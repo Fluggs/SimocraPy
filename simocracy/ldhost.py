@@ -36,6 +36,7 @@ def replaceAll(sub, repl, s):
 
 def doIt(article, opener):
     ldhost = re.compile(r'(Thumb=)?\[?\[?\s*(?P<link>(http://)?(www\.)?ld-host\.de/[/\w]*?\.[a-z][a-z][a-z])\s*[^\]]*?\]?\]?')
+    doubleRepl = re.compile(r'\[?\s*' + re.escape(replacement) + r'\s*' + re.escape(replacement) + r'\s*\]?')
     found = False
     text = ""
     logs = ""
@@ -43,7 +44,7 @@ def doIt(article, opener):
     #Spezialseiten abfangen
     site = None
     try:
-        site = wiki.openArticle(article, opener)
+        site = wiki.openArticle(article, opener, redirect=False)
     except Exception as e:
         if str(e) == "Spezialseite":
             return
@@ -56,7 +57,7 @@ def doIt(article, opener):
 
         #nichts gefunden
         if foundList == []:
-            text = text + newLine + "\n"
+            text = text + newLine
             continue
         else:
             found = True
@@ -69,7 +70,9 @@ def doIt(article, opener):
             else:
                 newLine = replaceAll(el.groupdict()['link'], replacement, newLine)
 
-        text = text + newLine + "\n"
+        newLine = replaceAll(doubleRepl, replacement, newLine)
+
+        text = text + newLine
 
         #logging
         if simulation and loglevel == "line":

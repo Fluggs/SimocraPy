@@ -416,8 +416,11 @@ Gibt ein "file-like object" (doc)  zurueck.
 article: Artikelname
 opener: eingeloggter urlopener
 """
-def openArticle(article, opener):
-    response = opener.open(url + "api.php?format=xml&action=query&titles=" + urllib.parse.quote(article) + "&redirects")
+def openArticle(article, opener, redirect=True):
+    qry = url + "api.php?format=xml&action=query&titles=" + urllib.parse.quote(article)
+    if redirect:
+        qry = qry + "&redirects"
+    response = opener.open(qry)
     
     #Leerzeile ueberspringen
     response.readline()
