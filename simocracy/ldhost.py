@@ -79,7 +79,7 @@ def doIt(article, opener):
             logs = logs + "\n- " + line.decode('utf-8') + "+ " + newLine + "\n"
 
     if found:
-        text = notif + "\n" + text
+        text = notif + text
 
         print("[[" + article + "]]")
         if loglevel == "line":
