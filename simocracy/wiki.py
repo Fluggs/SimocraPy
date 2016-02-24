@@ -70,8 +70,11 @@ def login(username, password):
 """
 Generator für alle Wikiseiten
 """
-def allPages(opener):
-    response = opener.open(url+'api.php?action=query&list=allpages&aplimit=5000&format=xml')
+def allPages(opener, resume=None):
+    qry = url+'api.php?action=query&list=allpages&aplimit=5000&format=xml'
+    if resume:
+        qry = qry + "&apfrom=" + resume
+    response = opener.open(qry)
 
     #Leerzeile ueberspringen
     response.readline()

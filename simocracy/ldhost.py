@@ -23,7 +23,7 @@ notif = r"{{LD-Host}}"
 def main():
     opener = wiki.login(wiki.username, wiki.password)
 
-    for p in wiki.allPages(opener):
+    for p in wiki.allPages(opener, resume="m."):
         doIt(p, opener)
 
 #Ersetzt alle Vorkommnisse von sub in s durch repl.
