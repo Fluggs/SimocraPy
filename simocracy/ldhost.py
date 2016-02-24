@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/bin/env python3.4
 # -*- coding: UTF-8 -*-
 
 import simocracy.wiki as wiki
@@ -13,9 +13,9 @@ simulation = True
 loglevel = "line"
 
 # Ersatz für LD-Host-Links
-replacement = "{{LD-Host-Replacer}}"
+replacement = r"{{LD-Host-Replacer}}"
 # Kommt vor jeden Artikel, wo was ersetzt wurde
-notif = "{{LD-Host}}"
+notif = r"{{LD-Host}}"
 ############
 
 
@@ -34,16 +34,15 @@ def replaceAll(sub, repl, s):
             return s
 
 def doIt(article, opener):
-    ldhost = re.compile(r'((Thumb=)?\[?\[?\s*(http://)?(www.)?ld-host.de/[/\w]*?\.[a-z][a-z][a-z]\s*\]?\]?)')
+    ldhost = re.compile(r'(Thumb=)?\[?\[?\s*(?P<link>(http://)?(www\.)?ld-host\.de/[/\w]*?\.[a-z][a-z][a-z])\s*[^\]]*?\]?\]?')
     found = False
     text = ""
     logs = ""
 
     for line in wiki.openArticle(article, opener):
         newLine = line.decode('utf-8')
-        m = ldhost.findall(newLine)
         foundList = []
-        for el in m:
+        for el in ldhost.finditer(newLine):
             foundList.append(el)
 
         #nichts gefunden
@@ -56,16 +55,16 @@ def doIt(article, opener):
         #ersetzen
         for el in foundList:
             #Bildboxen berücksichtigen
-            if 'Thumb=' in el:
-                newLine = replaceAll(el[0], "Thumb=", newLine)
+            if 'Thumb=' in el.groups():
+                newLine = replaceAll(el.groupdict()['link'], "", newLine)
             else:
-                newLine = replaceAll(el[0], replacement, newLine)
+                newLine = replaceAll(el.groupdict()['link'], replacement, newLine)
 
         text = text + newLine + "\n"
 
         #logging
         if simulation and loglevel == "line":
-            logs = logs + "\n- " + line.decode('utf-8') + "+ " + newLine
+            logs = logs + "\n- " + line.decode('utf-8') + "+ " + newLine + "\n"
 
     if found:
         text = notif + "\n" + text
