@@ -69,21 +69,20 @@ def doIt(article, opener):
     if found:
         text = notif + "\n" + text
 
+        print("[[" + article + "]]")
+        if loglevel == "line":
+            print(logs)
+        elif loglevel == "article":
+            print(text)
+        else:
+            raise Exception("config kaputt")
+
+        #Schreiben
         if not simulation:
             wiki.editArticle(article, text, opener)
             print("Done: "+article)
 
-        #Simulation
-        else:
-            print("[[" + article + "]]")
-            if loglevel == "line":
-                print(logs)
-            elif loglevel == "article":
-                print(text)
-            else:
-                raise Exception("config kaputt")
-
-            print("========================================================\n\n")
+        print("========================================================\n")
 
         
 
