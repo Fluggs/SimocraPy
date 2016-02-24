@@ -425,7 +425,12 @@ def openArticle(article, opener):
     #XML einlesen
     xml = ET.fromstring(response.readline())
 
-    article = xml.find("query").find("pages").find("page").attrib["title"]
+    article = xml.find("query").find("pages")
+    #Spezialseiten abfangen (z.B. Hochladen)
+    if not article:
+        raise Exception("Spezialseite")
+
+    article = article.find("page").attrib["title"]
     try:
         return opener.open(url + urllib.parse.quote(article) + "?action=raw")
     except urllib.error.HTTPError:

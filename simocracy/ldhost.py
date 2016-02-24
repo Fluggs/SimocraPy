@@ -6,10 +6,11 @@ import re
 
 ## config ##
 #Möglichkeit zur Simulation des Vorgangs
-simulation = True
+simulation = False
 
 #Loglevel: schreibe nur geänderte Zeilen ("line") oder
-#          ganze geänderte Artikel ("article") auf stdin
+#          ganze geänderte Artikel ("article") auf stdin oder
+#          gar nicht ("none")
 loglevel = "line"
 
 # Ersatz für LD-Host-Links
@@ -39,7 +40,15 @@ def doIt(article, opener):
     text = ""
     logs = ""
 
-    for line in wiki.openArticle(article, opener):
+    #Spezialseiten abfangen
+    site = None
+    try:
+        site = wiki.openArticle(article, opener)
+    except Exception as e:
+        if str(e) == "Spezialseite":
+            return
+
+    for line in site:
         newLine = line.decode('utf-8')
         foundList = []
         for el in ldhost.finditer(newLine):
