@@ -26,7 +26,8 @@ Sammlung von Funktionen für das Arbeiten im Wiki.
 
 
 ##### login(username, password)
-Gibt einen ins Wiki eingeloggten URL-Opener zurück.
+Loggt das Modul ins Wiki ein. Kann auch als login() aufgerufen werden; dies verwendet
+dann die am Anfang des Moduls eingetragenen Logindaten.
 
 
 ##### readVZ()
@@ -54,13 +55,13 @@ Keys `buendnisse`:
 * `name`
 
 
-##### openArticle(article, opener)
+##### openArticle(article)
 Öffnet einen Artikel (mithilfe von `opener.open()`); löst insb. Redirections auf.
-Erwartet den Artikelnamen und einen eingeloggten URL-opener (von `login()`) als Argumente.
+Erwartet den Artikelnamen als Argument.
 
 
-##### editArticle(article, text, opener)
-Schreibt `text` in den Wikiartikel `article`. `opener` ist ein eingeloggter URL-opener (von `login()`).
+##### editArticle(article, text)
+Schreibt `text` in den Wikiartikel `article`.
 
 
 ##### globalizeLinks(s, article)
@@ -90,7 +91,7 @@ Baut einen Link-String aus einem dict wie in parseLinks() zusammen.
 Parst das erste Vorkommen der Vorlage template auf der Seite site (Rückgabe von `openArticle()`) und gibt ein Dictionary mit den Werten zurück.
 Das Auslesen der flugghischen Infobox geschieht z.B. wie folgt:
 ```
-infobox = wiki.parseTemplate("Infobox Staat", wiki.openArticle("Flugghingen", opener))
+infobox = wiki.parseTemplate("Infobox Staat", wiki.openArticle("Flugghingen"))
 ```
 
 

@@ -1,11 +1,15 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
 
-import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse, http.cookiejar
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
+import http.cookiejar
 import xml.etree.ElementTree as ET
 import re
 import simocracy.credentials as credentials
 
+##############
+### Config ###
 username = credentials.username
 password = credentials.password
 
@@ -32,11 +36,30 @@ imageKeywords = [
     'Bild:',
     'bild:',
 ]
+##############
+
+opener = None
+
+"""
+Artikelklasse; iterierbar über Zeilen
+"""
+class Article:
+    def __init__(self, name):
+        pass
+
+"""
+Wird von parseTemplate geworfen, wenn die Vorlage
+nicht im Artikel ist
+"""
+class NoSuchTemplate(Exception):
+    pass
 
 """
 Loggt den User ins Wiki ein.
-Gibt den eingeloggten URL-Opener zurueck.
 """
+def login():
+    login(username, password)
+
 def login(username, password):
     #Ersten Request zusammensetzen, der das Login-Token einsammelt
     query_args = { 'lgname':username, 'lgpassword':password }
@@ -64,13 +87,12 @@ def login(username, password):
         raise Exception("Login: " + result)
     else:
         print(("Login: " + result))
-	
-    return opener
+
 
 """
 Generator für alle Wikiseiten
 """
-def allPages(opener, resume=None):
+def allPages(resume=None):
     qry = url+'api.php?action=query&list=allpages&aplimit=5000&format=xml'
     if resume:
         qry = qry + "&apfrom=" + resume
@@ -107,7 +129,7 @@ buendnisse: array aus dicts; keys:
     
 zB Zugriff auf Staatenname: r["staaten"][0]["name"]
 """
-def readVZ(site, opener):
+def readVZ(site):
 
     if not site:
         raise Exception("übergebene Seite leer")
@@ -189,7 +211,7 @@ def readVZ(site, opener):
         if entryCtr == 0:
             value = value.replace('{{!}}', '').strip()
             try:
-                dict["flagge"] = extractFlag(value, opener)
+                dict["flagge"] = extractFlag(value)
             except:
                 raise Exception("fehler bei Flaggencode "+value)
             
@@ -207,7 +229,7 @@ def readVZ(site, opener):
         elif entryCtr == 2:
             try:
                 value = re.split(flagge_p, value)[1]
-                dict["buendnis"] = extractFlag(value, opener)
+                dict["buendnis"] = extractFlag(value)
             except:
                 dict["buendnis"] = ""
             
@@ -261,7 +283,7 @@ def readVZ(site, opener):
             break
         if eintrag_p.match(line) is not None:
             tokens = re.split(eintrag_p, line)
-            dict["flagge"] = extractFlag(tokens[1], opener)
+            dict["flagge"] = extractFlag(tokens[1])
             names = getStateNames(tokens[2])
             dict["uri"] = names["uri"]
             dict["name"] = names["name"]
@@ -304,7 +326,7 @@ def readVZ(site, opener):
         #Tabelleneintrag
         if bndeintrag_p.match(line) is not None:
             tokens = re.split(bndeintrag_p, line)
-            dict["flagge"] = extractFlag(tokens[1], opener).strip()
+            dict["flagge"] = extractFlag(tokens[1]).strip()
             dict["name"] = tokens[2].split("|")[0].strip()
             bnds.append(dict.copy())
             dict.clear()
@@ -353,10 +375,8 @@ def getStateNames(wikilink):
 """
 Extrahiert den Dateinamen der Flagge
 aus der Flaggeneinbindung flagcode.
-Für den Fall der Flaggenvorlage wird
-diese mit dem urlopener geöffnet.
 """
-def extractFlag(flagcode, urlopener):
+def extractFlag(flagcode):
     #Flaggenvorlage
     if re.match(r'\{\{', flagcode) is not None:
         #flagcode.replace(r"{{", "")
@@ -375,7 +395,7 @@ def extractFlag(flagcode, urlopener):
         
         #Vorlage herunterladen
         try:
-            response = openArticle("Vorlage:" + flagcode, urlopener)
+            response = openArticle("Vorlage:" + flagcode)
         except:
             raise Exception("konnte nicht öffnen: "+flagcode)
         text = []
@@ -405,7 +425,7 @@ def extractFlag(flagcode, urlopener):
     
     #Bild-URL extrahieren
     flagcode = urllib.parse.quote(flagcode.strip().replace(' ', '_'))
-    response = urlopener.open(url + 'api.php?titles=Datei:'+flagcode+'&format=xml&action=query&prop=imageinfo&iiprop=url')
+    response = opener.open(url + 'api.php?titles=Datei:'+flagcode+'&format=xml&action=query&prop=imageinfo&iiprop=url')
     response.readline() #Leerzeile ueberspringen
     xmlRoot = ET.fromstring(response.readline())
     
@@ -417,9 +437,8 @@ def extractFlag(flagcode, urlopener):
 Oeffnet einen Wikiartikel; loest insb. Redirections auf.
 Gibt ein "file-like object" (doc)  zurueck.
 article: Artikelname
-opener: eingeloggter urlopener
 """
-def openArticle(article, opener, redirect=True):
+def openArticle(article, redirect=True):
     qry = url + "api.php?format=xml&action=query&titles=" + urllib.parse.quote(article)
     if redirect:
         qry = qry + "&redirects"
@@ -437,6 +456,7 @@ def openArticle(article, opener, redirect=True):
         raise Exception("Spezialseite")
 
     article = article.find("page").attrib["title"]
+    print("Öffne " + article)
     try:
         return opener.open(url + urllib.parse.quote(article) + "?action=raw")
     except urllib.error.HTTPError:
@@ -451,19 +471,34 @@ def parseTemplate(template, site):
     dict = {}
     #Anfang der Vorlage suchen
     pattern = re.compile(r"\s*\{\{\s*"+re.escape(template)+"\s*$", re.IGNORECASE)
+    found = False
     for line in site:
         line = line.decode('utf8')
         if pattern.search(line) is not None:
+            found = True
             break
+
+    if not found:
+        raise NoSuchTemplate(template + " in " + site)
 
     pattern = re.compile(r"^\s*\|\s*([^=]*)\s*=\s*(.+)\s*$")
     pattern_end = re.compile(r"\}\}")
+    pattern_start = re.compile(r"\{\{")
+    templateCounter = 0
+
     for line in site:
         line = line.decode('utf-8')
         if pattern_end.search(line):
-            if dict == {}:
-                return None
-            return dict
+            templateCounter += 1
+        if pattern_end.search(line):
+            #Vorlage template zuende
+            if templateCounter == 0:
+                if dict == {}:
+                    return None #?!
+                return dict
+            #Irgendeine andere Vorlage geht zuende
+            else:
+                templateCounter -= 1
         if pattern.match(line) is not None:
             kvPair = re.findall(pattern, line)
             value = kvPair[0][1]
@@ -471,6 +506,8 @@ def parseTemplate(template, site):
                 continue
             else:
                 dict[kvPair[0][0]] = value
+                print(kvPair[0][0] + " = " + value)
+
 
 """
 Macht alle lokalen Links in s global.
@@ -577,9 +614,8 @@ def removeLinks(s):
 
 """
 Schreibt den Text text in den Artikel article.
-Opener ist der eingeloggte opener.
 """
-def editArticle(article, text, opener):
+def editArticle(article, text):
     print("Bearbeite "+article)
 
     #Edit-Token lesen

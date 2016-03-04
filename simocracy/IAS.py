@@ -9,6 +9,13 @@ from datetime import datetime
 unknown = "Unbekannt"
 
 """
+Wird geworfen, falls in einer Infobox Staat wichtige
+Daten fehlen
+"""
+class InfoboxException(Exception):
+    pass
+
+"""
 ' 103.534.464,36 xyz' -> 103534454.36
 """
 def parseNumberToInt(string):
@@ -333,10 +340,15 @@ def normalizeZeitzone(s):
     return s[1:len(s)-1:1]
 
 """
+Prüft auf wichtige Werte 
 Füllt Infobox-dicts mit unknown-Werten auf
 """
-def fillInfobox(infobox):
-    keyList = [
+def normalizeInfobox(infobox, name):
+    mandatoryList = [
+        "Einwohnerzahl",
+        "Fläche",
+    ]
+    unknownList = [
         "TLD",
         "Amtssprache",
         "KFZ",
@@ -345,7 +357,11 @@ def fillInfobox(infobox):
         "Kürzel",
     ]
 
-    for key in keyList:
+    for key in mandatoryList:
+        if not key in infobox or infobox[key] is None:
+            raise InfoboxException(key + " fehlt in Infobox " + name)
+
+    for key in unknownList:
         if not key in infobox or infobox[key] is None:
             infobox[key] = unknown
 
@@ -385,8 +401,8 @@ def updateArticle():
 
     #Infoboxen einlesen
     print("Lese Portal ein")
-    opener = wiki.login(wiki.username, wiki.password)
-    vz = wiki.readVZ(wiki.openArticle(wiki.vz, opener), opener)
+    wiki.login()
+    vz = wiki.readVZ(wiki.openArticle(wiki.vz))
 
     #Alle Staaten zusammensammeln
     alleStaaten = []
@@ -401,10 +417,10 @@ def updateArticle():
 
     print("Lese Infoboxen ein")
     for staat in alleStaaten:
-        infobox = wiki.parseTemplate("Infobox Staat", wiki.openArticle(staat["uri"], opener))
+        infobox = wiki.parseTemplate("Infobox Staat", wiki.openArticle(staat["uri"]))
         for key in infobox:
             infobox[key] = wiki.globalizeLinks(infobox[key], staat["uri"])
-        infobox = fillInfobox(infobox)
+        infobox = normalizeInfobox(infobox, staat["uri"])
         if not infobox == None:
             staat["infobox"] = infobox
         #Stellt sicher, dass jeder Staatseintrag eine Infobox hat
@@ -625,7 +641,7 @@ def updateArticle():
     text += "</onlyinclude>\n"
     text += "[[Kategorie:Internationales Amt für Statistiken]]"
     text += "[[Kategorie:Fluggbot]]"
-    wiki.editArticle("Vorlage:IAS", text, opener)
+    wiki.editArticle("Vorlage:IAS", text)
 
     #Vorlage:Anzahl Staaten
     text = "<onlyinclude><includeonly>" + str(len(alleStaaten))
@@ -634,7 +650,7 @@ def updateArticle():
     text = text + "zurück. Gezählt werden alle Staaten des Planeten.<br>\nSie wird auf "
     text = text + "Basis der Staatenliste im [[Wikocracy:Portal|Portal]] berechnet.\n\n"
     text = text + "[[Kategorie:Fluggbot]]"
-    wiki.editArticle("Vorlage:Anzahl_Staaten", text, opener)
+    wiki.editArticle("Vorlage:Anzahl_Staaten", text)
 
     #Vorlage:Anzahl Freie Staaten
     text = "<onlyinclude><includeonly>" + str(len(vz["spielerlos"]))
@@ -643,7 +659,7 @@ def updateArticle():
     text = text + "Simocracy zurück. Gezählt werden alle Staaten des Planeten.<br>\nSie "
     text = text + "wird auf Basis der Staatenliste im [[Wikocracy:Portal|Portal]] berechnet."
     text = text + "\n\n[[Kategorie:Fluggbot]]"
-    wiki.editArticle("Vorlage:Anzahl_Freie_Staaten", text, opener)
+    wiki.editArticle("Vorlage:Anzahl_Freie_Staaten", text)
 
     #Vorlage:Anzahl Bespielte Staaten
     text = "<onlyinclude><includeonly>" + str(len(vz["staaten"]))
@@ -651,7 +667,7 @@ def updateArticle():
     text = text + "Diese Vorlage gibt die aktuelle Anzahl der bespielten Staaten in "
     text = text + "Simocracy zurück.<br>\nSie wird auf Basis der Staatenliste im "
     text = text + "[[Wikocracy:Portal|Portal]] berechnet.\n\n[[Kategorie:Fluggbot]]"
-    wiki.editArticle("Vorlage:Anzahl_Bespielte_Staaten", text, opener)
+    wiki.editArticle("Vorlage:Anzahl_Bespielte_Staaten", text)
 
     #Vorlage:Anzahl Spieler
     spielerliste = []
@@ -674,4 +690,4 @@ def updateArticle():
     for spieler in spielerliste:
         text = text + spieler + "<br>\n"
     text = text + "\n[[Kategorie:Fluggbot]]"
-    wiki.editArticle("Vorlage:Anzahl_Spieler", text, opener)
+    wiki.editArticle("Vorlage:Anzahl_Spieler", text)
