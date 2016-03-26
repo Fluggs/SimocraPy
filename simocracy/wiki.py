@@ -1,12 +1,12 @@
-#!/usr/bin/python
-# -*- coding: UTF-8 -*-
+#!/usr/bin/env python3.4
 
 import urllib.request, urllib.parse, urllib.error
-import urllib.request, urllib.error, urllib.parse
 import http.cookiejar
 import xml.etree.ElementTree as ET
 import re
 import simocracy.credentials as credentials
+
+from enum import Enum
 
 ##############
 ### Config ###
@@ -41,11 +41,192 @@ imageKeywords = [
 opener = None
 
 """
+Geparste Vorlage in Artikel
+"""
+class Template:
+    def __init__(self):
+        self.name = None
+        self.values = {}
+
+"""
 Artikelklasse; iterierbar über Zeilen
 """
 class Article:
-    def __init__(self, name):
-        pass
+    """
+    Öffnet einen Wikiartikel; löst insb. Redirections auf.
+    name: Artikelname
+    """
+    def __init__(self, name, redirect=True):
+        self.text = []
+        self._cursor = { "line":-1, "char":0, "modified":False }
+        
+        qry = "api.php?format=xml&action=query&titles="
+        qry = url + qry + urllib.parse.quote(name)
+        if redirect:
+            qry = qry + "&redirects"
+        response = opener.open(qry)
+
+        #Leerzeile ueberspringen
+        response.readline()
+
+        #XML einlesen
+        xml = ET.fromstring(response.readline())
+
+        article = xml.find("query").find("pages")
+        #Spezialseiten abfangen (z.B. Hochladen)
+        if not article:
+            raise Exception("Spezialseite")
+
+        self.title = article.find("page").attrib["title"]
+        print("Öffne " + self.title)
+        site = None
+        try:
+            qry = url+urllib.parse.quote(self.title) + "?action=raw"
+            site = opener.open(qry)
+        except urllib.error.HTTPError:
+            raise Exception("404: " + self.title)
+            
+        for line in site.readlines():
+            self.text.append(line.decode('utf-8'))
+            
+    """
+    Cursor-Definition
+    { "line":line, "char":char, "modified":True|False }
+    """
+    def getCursor(self):
+        return self._cursor
+        
+    def setCursor(self, value):
+        self._cursor = { 
+                "line" : value["line"],
+                "char" : value["char"],
+                "modified" : True,
+        }
+        
+    _cursor = property(getCursor, setCursor)
+            
+    """
+    Iterator-Stuff
+    """
+    def __iter__(self):
+        return self
+        
+    """
+    Berücksichtigt manuell geänderte Cursor.
+    """
+    def __next__(self):
+        if self._cursor["modified"]:
+            self._cursor["modified"] = False
+        else:
+            self._cursor["line"] += 1
+            self._cursor["char"] = 0
+            
+        try:
+            line = text[self._cursor["line"]
+        except IndexError:
+            raise StopIteration
+            
+        line = line[self._cursor["char"]:]
+            
+        return line
+        
+    class TStatus(Enum):
+        nothing = 1
+        name = 2
+        value = 3
+        
+        
+    """
+    Parst die erste Vorlage im Artikel und gibt ein dict zurück.
+    """
+    def parseTemplate(self):
+        template = Template()
+        p_start = re.compile(r"\{\{\s*([^|}]*)\s*")
+        p_name = re.compile(r"([^|}\s][^|}]*)")
+        p_end = re.compile(r"\}\}")
+        p_val = re.compile(r"\s*\|\s*([^=|}]*)\s*=?\s*([^|}]*)")
+        p_contval = re.compile(r"([^|}]+)")
+        status = TStatus.nothing
+        value = None
+        
+        for line in self:
+            #bisher nicht in ner Vorlage
+            if status == TStatus.nothing:
+                start = p_start.search(line)
+                if not start:
+                    continue
+                    
+                name = start.groups()[0].strip()
+                if name == "":
+                    status = TStatus.name
+                else:
+                    template.name = name
+                    status = TStatus.value
+                    line = _cursor["line"]
+                    char = start.span()[1]
+                    _cursor = {"line":line, "char":char}
+                    
+            #Wir haben nur {{ gefunden,
+            #aber nicht den Namen der Vorlage
+            elif status == TStatus.name:
+                name = p_name.search(line)
+                if name:
+                    name = name.groups()[0]
+                    status = TStatus.value
+                    _cursor = {"line":line, "char":name.span()[1]}
+                    
+            #Wir befinden uns im Werteteil der Vorlage
+            #und müssen mehrere Zeilen umfassende Werte erkennen
+            elif status == TStatus.value:
+                #Neuer Wert
+                if value = None:
+                    val = p_val.match(line)
+                
+            
+    """
+    Parst alle Vorlagen im Artikel text und gibt ein dict zurueck.
+    """
+    def parseTemplates(self):
+        dict = {}
+        #Anfang der Vorlage suchen
+        ic = re.IGNORECASE
+        pattern = re.compile(r"\s*\{\{\s*"+re.escape(template)+"\s*$", ic)
+        found = False
+        for line in site:
+            line = line.decode('utf8')
+            if pattern.search(line) is not None:
+                found = True
+                break
+
+        if not found:
+            raise NoSuchTemplate(template + " in " + site)
+
+        pattern = re.compile(r"^\s*\|\s*([^=]*)\s*=\s*(.+)\s*$")
+        pattern_end = re.compile(r"\}\}")
+        pattern_start = re.compile(r"\{\{")
+        templateCounter = 0
+
+        for line in site:
+            line = line.decode('utf-8')
+            if pattern_end.search(line):
+                templateCounter += 1
+            if pattern_end.search(line):
+                #Vorlage template zuende
+                if templateCounter == 0:
+                    if dict == {}:
+                        return None #?!
+                    return dict
+                #Irgendeine andere Vorlage geht zuende
+                else:
+                    templateCounter -= 1
+            if pattern.match(line) is not None:
+                kvPair = re.findall(pattern, line)
+                value = kvPair[0][1]
+                if re.match(r'<!--(.*?)-->$', value):
+                    continue
+                else:
+                    dict[kvPair[0][0]] = value
+                    print(kvPair[0][0] + " = " + value)
 
 """
 Wird von parseTemplate geworfen, wenn die Vorlage
@@ -58,14 +239,15 @@ class NoSuchTemplate(Exception):
 Loggt den User ins Wiki ein.
 """
 def login():
-    login(username, password)
-
-def login(username, password):
+    global opener
+    
     #Ersten Request zusammensetzen, der das Login-Token einsammelt
     query_args = { 'lgname':username, 'lgpassword':password }
-    cj = http.cookiejar.CookieJar()
-    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
-    response = opener.open(url + 'api.php?format=xml&action=login', urllib.parse.urlencode(query_args).encode('utf8'))
+    qry_args = urllib.parse.urlencode(query_args).encode('utf-8')
+    qry = url + 'api.php?format=xml&action=login'
+    c = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(c))
+    response = opener.open(qry, qry_args)
 
     #Token aus xml extrahieren
     response.readline() #Leerzeile überspringen
@@ -75,8 +257,8 @@ def login(username, password):
 
     #Zweiter Request mit Login-Token
     query_args.update({'lgtoken':lgToken})
-    data = urllib.parse.urlencode(query_args)
-    response = opener.open(url+'api.php?format=xml&action=login', data.encode('utf8'))
+    data = urllib.parse.urlencode(query_args).encode('utf-8')
+    response = opener.open(url+'api.php?format=xml&action=login', data)
 
     #Login-Status; ggf. abbrechen
     response.readline() #Leerzeile überspringen
