@@ -7,6 +7,7 @@ import re
 import simocracy.credentials as credentials
 
 from enum import Enum
+from simocracy.statemachine import StateMachine
 
 ##############
 ### Config ###
@@ -44,9 +45,99 @@ opener = None
 Geparste Vorlage in Artikel
 """
 class Template:
-    def __init__(self):
+    def __init__(self, article):
+        self.article = article
+        self.line = 
         self.name = None
         self.values = {}
+        
+        #"anonyme" Werte in Vorlagen ({{Vorlage|Wert}})
+        self.anonymous = 0
+        
+        #Setup State Machine
+        self.fsm = StateMachine()
+        self.fsm.addState("start", self.start_state)
+        self.fsm.setStart("start")
+        self.fsm.addState("name", self.name_state)
+        self.fsm.addState("newValue", self.newValue_state)
+        self.fsm.addState("value", self.value_state)
+        self.fsm.addState("end", self.end_state, end=True)
+        
+        self.p_start = re.compile(r"\{\{")
+        self.p_end = re.compile(r"\}\}")
+        self.p_val = re.compile(r"\s*\|\s*([^=|}]*)\s*=?\s*([^|}]*)")
+        self.p_slicer = re.compile(r"\|")
+        #Marker für nächsten Abschnitt; dh Ende der Vorlage oder nächster Wert
+        self.slicers = {
+            self.p_start : "start",
+            self.p_end : "end",
+            self.p_slicer : "newValue",
+        }
+        
+        self.fsm.run()
+        
+    """
+    State Machine Handlers
+    """
+    #Start bzw. bisher keine Vorlage gefunden
+    def start_state():
+        start = self.p_start.search(self.article.line)
+        if not start:
+            self.article.__next__()
+            return "start"
+            
+        cursor = { "line" : self.article.cursor["line"] }
+        cursor["char"] = start.span()[1]
+        self.article.cursor = cursor
+        return "name"
+        
+    #Name der Vorlage
+    def name_state():
+        line = self.article.line
+        newState = None
+        
+        #Hinteren Vorlagenkram abhacken
+        for slicer in self.slicers:
+            match = slicer.search(line)
+            if match:
+                if self.slicers[slicer] == "start":
+                    raise Exception("template in template name: " + line
+                line = line[:match.span()[0]]
+                self.article.cursor = match.span()[0]
+                newState = self.slicers[slicer]
+                
+        line = line.strip()
+        if line == "":
+            return "name"
+            
+        name = line
+        
+        if newState:
+            return newState
+            
+        #Nächsten Status suchen falls }} oder | nicht in der Zeile
+        while True:
+            try:
+                line = self.article.__next__()
+            except StopIteration:
+                raise Exception("incomplete Template")
+                
+            for slicer in self.slicers:
+                match = slicer.search(line)
+                if not match:
+                    continue
+                
+                prematch = line[:match.span()[0]]
+                if prematch.strip() is not "":
+                    raise Exception("template name over multiple lines")
+                
+                newState = self.slicers[slicer]
+                
+            if newState:
+                return newState
+                
+    def newValue_state():
+        
 
 """
 Artikelklasse; iterierbar über Zeilen
@@ -93,17 +184,33 @@ class Article:
     Cursor-Definition
     { "line":line, "char":char, "modified":True|False }
     """
-    def getCursor(self):
+    @property
+    def cursor(self):
         return self._cursor
-        
+       
+    #value kann vollständiger Cursor oder nur char sein
+    @cursor.setter
     def setCursor(self, value):
-        self._cursor = { 
-                "line" : value["line"],
-                "char" : value["char"],
+        #vollständiger Cursor übergeben
+        try:
+            self._cursor = { 
+                "line" : value["line"] + 0,
+                "char" : value["char"] + 0,
                 "modified" : True,
-        }
+            }
+        except:
+            #nur char übergeben
+            try:
+                self._cursor = {
+                    "line" : self._cursor["line"],
+                    "char" : value + 0,
+                    "modified" : True,
+                }
+            except:
+                raise Exception("invalid cursor: " + str(value))
         
-    _cursor = property(getCursor, setCursor)
+    def resetCursor(self):
+        self._cursor = { "line":-1, "char":0, "modified":False }
             
     """
     Iterator-Stuff
@@ -130,7 +237,12 @@ class Article:
             
         return line
         
-    class TStatus(Enum):
+    @property
+    def line(self):
+        return text[self._cursor["line"][self._cursor["char"]:]
+        
+        
+    class TState(Enum):
         nothing = 1
         name = 2
         value = 3
@@ -146,41 +258,58 @@ class Article:
         p_end = re.compile(r"\}\}")
         p_val = re.compile(r"\s*\|\s*([^=|}]*)\s*=?\s*([^|}]*)")
         p_contval = re.compile(r"([^|}]+)")
-        status = TStatus.nothing
+        state = TState.nothing
         value = None
         
         for line in self:
             #bisher nicht in ner Vorlage
-            if status == TStatus.nothing:
+            if state == TState.nothing:
                 start = p_start.search(line)
                 if not start:
                     continue
                     
                 name = start.groups()[0].strip()
                 if name == "":
-                    status = TStatus.name
+                    state = TState.name
                 else:
                     template.name = name
-                    status = TStatus.value
+                    state = TState.value
                     line = _cursor["line"]
                     char = start.span()[1]
                     _cursor = {"line":line, "char":char}
                     
             #Wir haben nur {{ gefunden,
             #aber nicht den Namen der Vorlage
-            elif status == TStatus.name:
+            elif state == TState.name:
                 name = p_name.search(line)
                 if name:
                     name = name.groups()[0]
-                    status = TStatus.value
+                    state = TState.value
                     _cursor = {"line":line, "char":name.span()[1]}
                     
             #Wir befinden uns im Werteteil der Vorlage
             #und müssen mehrere Zeilen umfassende Werte erkennen
-            elif status == TStatus.value:
+            elif state == TState.value:
                 #Neuer Wert
-                if value = None:
+                if value == None:
                     val = p_val.match(line)
+                    
+                    if not val:
+                        raise SyntaxErr(line)
+                        
+                    #anonyme Werte abfangen
+                    if val.groups()[1].strip() == "":
+                        template.anonymous += 1
+                        value = [
+                            str(template.anonymous),
+                            val.groups()[0]
+                            #Problem: "| wert="
+                    
+                #Sind noch im letzten Wert und schlagen dem alles zu, was vor
+                #| oder }} kommt
+                else:
+                    val = p_contval.match(line)
+                    
                 
             
     """
