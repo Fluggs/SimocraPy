@@ -59,7 +59,6 @@ class Template:
         self.fsm.addState("start", self.start_state)
         self.fsm.setStart("start")
         self.fsm.addState("name", self.name_state)
-        self.fsm.addState("newValue", self.newValue_state)
         self.fsm.addState("value", self.value_state)
         self.fsm.addState("end", self.end_state, end=True)
         
@@ -69,9 +68,9 @@ class Template:
         self.p_slicer = re.compile(r"\|")
         #Marker für nächsten Abschnitt; dh Ende der Vorlage oder nächster Wert
         self.slicers = {
-            self.p_start : "start",
-            self.p_end : "end",
-            self.p_slicer : "newValue",
+            self.p_end    : "end",
+            self.p_slicer : "value",
+            self.p_start  : "start",
         }
         
         self.fsm.run()
@@ -103,14 +102,14 @@ class Template:
                 if self.slicers[slicer] == "start":
                     raise Exception("template in template name: " + line
                 line = line[:match.span()[0]]
-                self.article.cursor = match.span()[0]
+                self.article.cursor = match.span()[1]
                 newState = self.slicers[slicer]
                 
         line = line.strip()
         if line == "":
             return "name"
             
-        name = line
+        name = line.strip()
         
         if newState:
             return newState
@@ -136,8 +135,40 @@ class Template:
             if newState:
                 return newState
                 
-    def newValue_state():
+    def value_state():
+        #hinteren kram abhacken; mehrere Zeilen zusammensammeln
+        newState = "value"
+        value = ""
+        line = self.article.line
+        while True:
+            for slicer in self.slicers:
+                match = slicer.search(line)
+                if not match:
+                    continue
+            
+                newState = self.slicers[slicer]
+                line = line[:match.span()[0]]
+                
+            value += line
+            
+            if newState is not "value":
+                break
+                
+            try:
+                line = self.article.__next__()
+                value += "\n"
+            except StopIteration:
+                raise Exception("incomplete Template: " + name)
+                
+        #value parsen
+        split = value.split("=")
+        if len(split) > 1:
+            value = split[1]
+            for el in range(2, len(split)):
+                value += "=" + split[el]
+                
         
+            
 
 """
 Artikelklasse; iterierbar über Zeilen
