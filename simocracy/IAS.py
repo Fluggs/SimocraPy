@@ -415,6 +415,7 @@ def updateArticle():
 
     alleStaaten =  sorted(alleStaaten, key=lambda k: k['sortname'])
 
+    """
     print("Lese Infoboxen ein")
     for staat in alleStaaten:
         infobox = wiki.parseTemplate("Infobox Staat", wiki.openArticle(staat["uri"]))
@@ -643,6 +644,7 @@ def updateArticle():
     text += "[[Kategorie:Fluggbot]]"
     wiki.editArticle("Vorlage:IAS", text)
 
+    """
     #Vorlage:Anzahl Staaten
     text = "<onlyinclude><includeonly>" + str(len(alleStaaten))
     text = text + "</includeonly></onlyinclude>\n"

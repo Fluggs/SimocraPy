@@ -58,9 +58,8 @@ class NoSuchTemplate(Exception):
 Loggt den User ins Wiki ein.
 """
 def login():
-    login(username, password)
+    global opener
 
-def login(username, password):
     #Ersten Request zusammensetzen, der das Login-Token einsammelt
     query_args = { 'lgname':username, 'lgpassword':password }
     cj = http.cookiejar.CookieJar()
