@@ -469,11 +469,7 @@ Loggt den User ins Wiki ein.
 """
 def login():
     global opener
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> 3f9487afc8187c3a56ac7ea7ae92c39ccfa5a330
     #Ersten Request zusammensetzen, der das Login-Token einsammelt
     query_args = { 'lgname':username, 'lgpassword':password }
     qry_args = urllib.parse.urlencode(query_args).encode('utf-8')
