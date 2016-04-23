@@ -1,4 +1,4 @@
-# -*-coding: UTF-8 -*-
+#!/usr/bin/env python3.4
 
 import simocracy.wiki as wiki
 import re, sys
@@ -413,7 +413,7 @@ def updateArticle():
         staat['spielerlos'] = True
         alleStaaten.append(staat)
 
-    alleStaaten =  sorted(alleStaaten, key=lambda k: k['sortname'])
+    alleStaaten = sorted(alleStaaten, key=lambda k: k['sortname'])
 
     """
     print("Lese Infoboxen ein")

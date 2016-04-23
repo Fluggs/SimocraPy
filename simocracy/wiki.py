@@ -1,12 +1,13 @@
-#!/usr/bin/python
-# -*- coding: UTF-8 -*-
+#!/usr/bin/env python3.4
 
 import urllib.request, urllib.parse, urllib.error
-import urllib.request, urllib.error, urllib.parse
 import http.cookiejar
 import xml.etree.ElementTree as ET
 import re
 import simocracy.credentials as credentials
+
+from enum import Enum
+from simocracy.statemachine import StateMachine
 
 ##############
 ### Config ###
@@ -41,11 +42,420 @@ imageKeywords = [
 opener = None
 
 """
+Geparste Vorlage in Artikel
+"""
+class Template:
+    def __init__(self, article):
+        self.article = article
+        self.name = None
+        self.values = {}
+        
+        #nested templates; list bestehend aus:
+        #{"start":startcursor, "end":endcursor, "template":Template()}
+        self.subtemplates = []
+        
+        #"anonyme" Werte in Vorlagen ({{Vorlage|Wert}})
+        self.anonymous = 0
+        
+        #Setup State Machine
+        self.fsm = StateMachine()
+        self.fsm.addState("start", self.start_state)
+        self.fsm.setStart("start")
+        self.fsm.addState("name", self.name_state)
+        self.fsm.addState("value", self.value_state)
+        self.fsm.addState("end", self.end_state, end=True)
+        
+        self.p_start = re.compile(r"\{\{")
+        self.p_end = re.compile(r"\}\}")
+        self.p_val = re.compile(r"\s*\|\s*([^=|}]*)\s*=?\s*([^|}]*)")
+        self.p_slicer = re.compile(r"\|")
+        #Marker für nächsten Abschnitt; dh Ende der Vorlage oder nächster Wert
+        self.slicers = {
+            self.p_end    : "end",
+            self.p_slicer : "value",
+            self.p_start  : "start",
+        }
+        
+        self.fsm.run()
+        
+    """
+    State Machine Handlers
+    """
+    """Start bzw. bisher keine Vorlage gefunden"""
+    def start_state(self):
+        start = self.p_start.search(self.article.line)
+        if not start:
+            self.article.__next__()
+            return "start"
+            
+        cursor = { "line" : self.article.cursor["line"] }
+        cursor["char"] = start.span()[1]
+        self.article.cursor = cursor
+        return "name"
+        
+        
+    """Name der Vorlage"""
+    def name_state(self):
+        line = self.article.line
+        newState = None
+        
+        #Hinteren Vorlagenkram abhacken
+        for slicer in self.slicers:
+            match = slicer.search(line)
+            if match:
+                if self.slicers[slicer] == "start":
+                    raise Exception("template in template name: " + line)
+                line = line[:match.span()[0]]
+                self.article.cursor = match.span()[1]
+                newState = self.slicers[slicer]
+                
+        line = line.strip()
+        if line == "":
+            return "name"
+            
+        name = line.strip()
+        
+        if newState:
+            return newState
+            
+        #Nächsten Status in nächster Zeile suchen
+        while True:
+            try:
+                line = self.article.__next__()
+            except StopIteration:
+                raise Exception("incomplete Template")
+                
+            for slicer in self.slicers:
+                match = slicer.search(line)
+                if not match:
+                    continue
+                
+                prematch = line[:match.span()[0]]
+                if prematch.strip() is not "":
+                    raise Exception("template name over multiple lines")
+                
+                newState = self.slicers[slicer]
+                
+            if newState:
+                return newState
+                
+    
+    """Vorlageneintrag /-wert; sucht über mehrere Zeilen hinweg"""
+    def value_state(self):
+        #hinteren Kram abhacken; mehrere Zeilen zusammensammeln
+        newState = "continue"
+        value = ""
+        line = self.article.line
+        while True:
+            span = None
+            for slicer in self.slicers:
+                match = slicer.search(line)
+                if not match:
+                    continue
+            
+                newState = self.slicers[slicer]
+                span = match.span()
+                line = line[:span[0]]
+                
+            value += line
+            
+            #nested template
+            if newState is "start":
+                cursor = self.article.cursor
+                cursor["char"] = span[0]
+                template = Template(self.article)
+                subt = {"startcursor" : cursor,
+                        "template" : template,
+                        "endcursor" : self.article.cursor}
+                self.subtemplates.append(subt)
+                newState = "continue"
+                value += self.article.extract(cursor, subt["endcursor"])
+            
+            #v.a. Cursor setzen
+            elif newState is not "continue":
+                self.article.cursor = span[1]
+                break
+                
+            try:
+                line = self.article.__next__()
+                value += "\n"
+            except StopIteration:
+                raise Exception("incomplete Template: " + name)
+                
+        #value parsen
+        split = value.split("=")
+        if len(split) > 1:
+            value = split[1]
+            #mögliche weitere = in value abfangen
+            for el in range(2, len(split)):
+                value += "=" + split[el]
+                
+            key = split[0]
+            if "{{" in key:
+                raise Exception("template in key: "+key)
+            self.values[key] = value
+            
+        #anonyme values
+        else:
+            key = 1
+            while True:
+                if key in self.values:
+                    key += 1
+                else:
+                    break
+                    
+            self.values[key] = split[0]
+            
+        return newState
+        
+    def end_state(self):
+        print("Vorlage geparst: " + self.name)
+                
+            
+            
+
+"""
 Artikelklasse; iterierbar über Zeilen
 """
 class Article:
-    def __init__(self, name):
-        pass
+    """
+    Öffnet einen Wikiartikel; löst insb. Redirections auf.
+    name: Artikelname
+    """
+    def __init__(self, name, redirect=True):
+        self.text = []
+        self._cursor = { "line":-1, "char":0, "modified":False }
+        
+        qry = "api.php?format=xml&action=query&titles="
+        qry = url + qry + urllib.parse.quote(name)
+        if redirect:
+            qry = qry + "&redirects"
+        response = opener.open(qry)
+
+        #Leerzeile ueberspringen
+        response.readline()
+
+        #XML einlesen
+        xml = ET.fromstring(response.readline())
+
+        article = xml.find("query").find("pages")
+        #Spezialseiten abfangen (z.B. Hochladen)
+        if not article:
+            raise Exception("Spezialseite")
+
+        self.title = article.find("page").attrib["title"]
+        print("Öffne " + self.title)
+        site = None
+        try:
+            qry = url+urllib.parse.quote(self.title) + "?action=raw"
+            site = opener.open(qry)
+        except urllib.error.HTTPError:
+            raise Exception("404: " + self.title)
+            
+        for line in site.readlines():
+            self.text.append(line.decode('utf-8'))
+            
+    """
+    Cursor-Definition
+    { "line":line, "char":char, "modified":True|False }
+    """
+    @property
+    def cursor(self):
+        return self._cursor.copy()
+       
+    #value kann vollständiger Cursor oder nur char sein
+    @cursor.setter
+    def cursor(self, value):
+        #vollständiger Cursor übergeben
+        try:
+            self._cursor = { 
+                "line" : value["line"] + 0,
+                "char" : value["char"] + 0,
+                "modified" : True,
+            }
+        except:
+            #nur char übergeben
+            try:
+                self._cursor = {
+                    "line" : self._cursor["line"],
+                    "char" : value + 0,
+                    "modified" : True,
+                }
+            except:
+                raise Exception("invalid cursor: " + str(value))
+        
+    def resetCursor(self):
+        self._cursor = { "line":-1, "char":0, "modified":False }
+        
+    """
+    Gibt den Teil zwischen den Cursorn start und end zurück;
+    alle Zeilen aneinandergehängt und mit \n getrennt
+    """
+    def extract(self, start, end):
+        #Nur eine Zeile
+        if start["line"] == end["line"]:
+            return text[start["line"]][start["char"]:end["char"]]
+        
+        r = ""
+        for i in range(start["line"], end["line"] + 1):
+            #Anfangszeile
+            if i == start["line"]:
+                r += text[i][start["char"]:] + "\n"
+            #Endzeile
+            elif i == end["line"]:
+                return r + text[i][:end["char"]]
+                
+            else:
+                r += text[i] + "\n"
+                
+        #Sollte eigentlich nicht auftreten, da return in Endzeile
+        raise RuntimeError()
+            
+    """
+    Iterator-Stuff
+    """
+    def __iter__(self):
+        return self
+        
+    """
+    Berücksichtigt manuell geänderte Cursor.
+    """
+    def __next__(self):
+        if self._cursor["modified"]:
+            self._cursor["modified"] = False
+        else:
+            self._cursor["line"] += 1
+            self._cursor["char"] = 0
+            
+        try:
+            line = self.text[self._cursor["line"]]
+        except IndexError:
+            raise StopIteration
+            
+        line = line[self._cursor["char"]:]
+            
+        return line
+        
+    @property
+    def line(self):
+        return self.text[self._cursor["line"]][self._cursor["char"]:]
+        
+    class TState(Enum):
+        nothing = 1
+        name = 2
+        value = 3
+        
+        
+    """
+    Parst die erste Vorlage im Artikel und gibt ein dict zurück.
+    """
+    def parseTemplate(self):
+        template = Template()
+        p_start = re.compile(r"\{\{\s*([^|}]*)\s*")
+        p_name = re.compile(r"([^|}\s][^|}]*)")
+        p_end = re.compile(r"\}\}")
+        p_val = re.compile(r"\s*\|\s*([^=|}]*)\s*=?\s*([^|}]*)")
+        p_contval = re.compile(r"([^|}]+)")
+        state = TState.nothing
+        value = None
+        
+        for line in self:
+            #bisher nicht in ner Vorlage
+            if state == TState.nothing:
+                start = p_start.search(line)
+                if not start:
+                    continue
+                    
+                name = start.groups()[0].strip()
+                if name == "":
+                    state = TState.name
+                else:
+                    template.name = name
+                    state = TState.value
+                    line = _cursor["line"]
+                    char = start.span()[1]
+                    _cursor = {"line":line, "char":char}
+                    
+            #Wir haben nur {{ gefunden,
+            #aber nicht den Namen der Vorlage
+            elif state == TState.name:
+                name = p_name.search(line)
+                if name:
+                    name = name.groups()[0]
+                    state = TState.value
+                    _cursor = {"line":line, "char":name.span()[1]}
+                    
+            #Wir befinden uns im Werteteil der Vorlage
+            #und müssen mehrere Zeilen umfassende Werte erkennen
+            elif state == TState.value:
+                #Neuer Wert
+                if value == None:
+                    val = p_val.match(line)
+                    
+                    if not val:
+                        raise SyntaxErr(line)
+                        
+                    #anonyme Werte abfangen
+                    if val.groups()[1].strip() == "":
+                        template.anonymous += 1
+                        value = [
+                            str(template.anonymous),
+                            val.groups()[0]]
+                            #Problem: "| wert="
+                    
+                #Sind noch im letzten Wert und schlagen dem alles zu, was vor
+                #| oder }} kommt
+                else:
+                    val = p_contval.match(line)
+                    
+        raise Exception("deprecated")
+                    
+                
+            
+    """
+    Parst alle Vorlagen im Artikel text und gibt ein dict zurueck.
+    """
+    def parseTemplates(self):
+        dict = {}
+        #Anfang der Vorlage suchen
+        ic = re.IGNORECASE
+        pattern = re.compile(r"\s*\{\{\s*"+re.escape(template)+"\s*$", ic)
+        found = False
+        for line in site:
+            line = line.decode('utf8')
+            if pattern.search(line) is not None:
+                found = True
+                break
+
+        if not found:
+            raise NoSuchTemplate(template + " in " + site)
+
+        pattern = re.compile(r"^\s*\|\s*([^=]*)\s*=\s*(.+)\s*$")
+        pattern_end = re.compile(r"\}\}")
+        pattern_start = re.compile(r"\{\{")
+        templateCounter = 0
+
+        for line in site:
+            line = line.decode('utf-8')
+            if pattern_end.search(line):
+                templateCounter += 1
+            if pattern_end.search(line):
+                #Vorlage template zuende
+                if templateCounter == 0:
+                    if dict == {}:
+                        return None #?!
+                    return dict
+                #Irgendeine andere Vorlage geht zuende
+                else:
+                    templateCounter -= 1
+            if pattern.match(line) is not None:
+                kvPair = re.findall(pattern, line)
+                value = kvPair[0][1]
+                if re.match(r'<!--(.*?)-->$', value):
+                    continue
+                else:
+                    dict[kvPair[0][0]] = value
+                    print(kvPair[0][0] + " = " + value)
 
 """
 Wird von parseTemplate geworfen, wenn die Vorlage
@@ -59,12 +469,18 @@ Loggt den User ins Wiki ein.
 """
 def login():
     global opener
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 3f9487afc8187c3a56ac7ea7ae92c39ccfa5a330
     #Ersten Request zusammensetzen, der das Login-Token einsammelt
     query_args = { 'lgname':username, 'lgpassword':password }
-    cj = http.cookiejar.CookieJar()
-    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
-    response = opener.open(url + 'api.php?format=xml&action=login', urllib.parse.urlencode(query_args).encode('utf8'))
+    qry_args = urllib.parse.urlencode(query_args).encode('utf-8')
+    qry = url + 'api.php?format=xml&action=login'
+    c = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(c))
+    response = opener.open(qry, qry_args)
 
     #Token aus xml extrahieren
     response.readline() #Leerzeile überspringen
@@ -74,8 +490,8 @@ def login():
 
     #Zweiter Request mit Login-Token
     query_args.update({'lgtoken':lgToken})
-    data = urllib.parse.urlencode(query_args)
-    response = opener.open(url+'api.php?format=xml&action=login', data.encode('utf8'))
+    data = urllib.parse.urlencode(query_args).encode('utf-8')
+    response = opener.open(url+'api.php?format=xml&action=login', data)
 
     #Login-Status; ggf. abbrechen
     response.readline() #Leerzeile überspringen
