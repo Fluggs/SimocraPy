@@ -47,9 +47,12 @@ Geparste Vorlage in Artikel
 class Template:
     def __init__(self, article):
         self.article = article
-        self.line = 
         self.name = None
         self.values = {}
+        
+        #nested templates; list bestehend aus:
+        #{"start":startcursor, "end":endcursor, "template":Template()}
+        self.subtemplates = []
         
         #"anonyme" Werte in Vorlagen ({{Vorlage|Wert}})
         self.anonymous = 0
@@ -78,8 +81,8 @@ class Template:
     """
     State Machine Handlers
     """
-    #Start bzw. bisher keine Vorlage gefunden
-    def start_state():
+    """Start bzw. bisher keine Vorlage gefunden"""
+    def start_state(self):
         start = self.p_start.search(self.article.line)
         if not start:
             self.article.__next__()
@@ -90,8 +93,9 @@ class Template:
         self.article.cursor = cursor
         return "name"
         
-    #Name der Vorlage
-    def name_state():
+        
+    """Name der Vorlage"""
+    def name_state(self):
         line = self.article.line
         newState = None
         
@@ -100,7 +104,7 @@ class Template:
             match = slicer.search(line)
             if match:
                 if self.slicers[slicer] == "start":
-                    raise Exception("template in template name: " + line
+                    raise Exception("template in template name: " + line)
                 line = line[:match.span()[0]]
                 self.article.cursor = match.span()[1]
                 newState = self.slicers[slicer]
@@ -114,7 +118,7 @@ class Template:
         if newState:
             return newState
             
-        #Nächsten Status suchen falls }} oder | nicht in der Zeile
+        #Nächsten Status in nächster Zeile suchen
         while True:
             try:
                 line = self.article.__next__()
@@ -135,23 +139,41 @@ class Template:
             if newState:
                 return newState
                 
-    def value_state():
-        #hinteren kram abhacken; mehrere Zeilen zusammensammeln
-        newState = "value"
+    
+    """Vorlageneintrag /-wert; sucht über mehrere Zeilen hinweg"""
+    def value_state(self):
+        #hinteren Kram abhacken; mehrere Zeilen zusammensammeln
+        newState = "continue"
         value = ""
         line = self.article.line
         while True:
+            span = None
             for slicer in self.slicers:
                 match = slicer.search(line)
                 if not match:
                     continue
             
                 newState = self.slicers[slicer]
-                line = line[:match.span()[0]]
+                span = match.span()
+                line = line[:span[0]]
                 
             value += line
             
-            if newState is not "value":
+            #nested template
+            if newState is "start":
+                cursor = self.article.cursor
+                cursor["char"] = span[0]
+                template = Template(self.article)
+                subt = {"startcursor" : cursor,
+                        "template" : template,
+                        "endcursor" : self.article.cursor}
+                self.subtemplates.append(subt)
+                newState = "continue"
+                value += self.article.extract(cursor, subt["endcursor"])
+            
+            #v.a. Cursor setzen
+            elif newState is not "continue":
+                self.article.cursor = span[1]
                 break
                 
             try:
@@ -164,10 +186,32 @@ class Template:
         split = value.split("=")
         if len(split) > 1:
             value = split[1]
+            #mögliche weitere = in value abfangen
             for el in range(2, len(split)):
                 value += "=" + split[el]
                 
+            key = split[0]
+            if "{{" in key:
+                raise Exception("template in key: "+key)
+            self.values[key] = value
+            
+        #anonyme values
+        else:
+            key = 1
+            while True:
+                if key in self.values:
+                    key += 1
+                else:
+                    break
+                    
+            self.values[key] = split[0]
+            
+        return newState
         
+    def end_state(self):
+        print("Vorlage geparst: " + self.name)
+                
+            
             
 
 """
@@ -217,11 +261,11 @@ class Article:
     """
     @property
     def cursor(self):
-        return self._cursor
+        return self._cursor.copy()
        
     #value kann vollständiger Cursor oder nur char sein
     @cursor.setter
-    def setCursor(self, value):
+    def cursor(self, value):
         #vollständiger Cursor übergeben
         try:
             self._cursor = { 
@@ -242,6 +286,30 @@ class Article:
         
     def resetCursor(self):
         self._cursor = { "line":-1, "char":0, "modified":False }
+        
+    """
+    Gibt den Teil zwischen den Cursorn start und end zurück;
+    alle Zeilen aneinandergehängt und mit \n getrennt
+    """
+    def extract(self, start, end):
+        #Nur eine Zeile
+        if start["line"] == end["line"]:
+            return text[start["line"]][start["char"]:end["char"]]
+        
+        r = ""
+        for i in range(start["line"], end["line"] + 1):
+            #Anfangszeile
+            if i == start["line"]:
+                r += text[i][start["char"]:] + "\n"
+            #Endzeile
+            elif i == end["line"]:
+                return r + text[i][:end["char"]]
+                
+            else:
+                r += text[i] + "\n"
+                
+        #Sollte eigentlich nicht auftreten, da return in Endzeile
+        raise RuntimeError()
             
     """
     Iterator-Stuff
@@ -260,7 +328,7 @@ class Article:
             self._cursor["char"] = 0
             
         try:
-            line = text[self._cursor["line"]
+            line = self.text[self._cursor["line"]]
         except IndexError:
             raise StopIteration
             
@@ -270,8 +338,7 @@ class Article:
         
     @property
     def line(self):
-        return text[self._cursor["line"][self._cursor["char"]:]
-        
+        return self.text[self._cursor["line"]][self._cursor["char"]:]
         
     class TState(Enum):
         nothing = 1
@@ -333,13 +400,15 @@ class Article:
                         template.anonymous += 1
                         value = [
                             str(template.anonymous),
-                            val.groups()[0]
+                            val.groups()[0]]
                             #Problem: "| wert="
                     
                 #Sind noch im letzten Wert und schlagen dem alles zu, was vor
                 #| oder }} kommt
                 else:
                     val = p_contval.match(line)
+                    
+        raise Exception("deprecated")
                     
                 
             

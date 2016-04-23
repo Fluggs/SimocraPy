@@ -19,7 +19,7 @@ class StateMachine():
         else:
             raise Exception("unknown state: " + name)
         
-    def run():
+    def run(self):
         if self.start == None:
             raise Exception("no start state given")
         
