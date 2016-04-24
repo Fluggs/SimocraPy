@@ -91,6 +91,7 @@ class Template:
         cursor = { "line" : self.article.cursor["line"] }
         cursor["char"] = start.span()[1]
         self.article.cursor = cursor
+        print("line: "+self.article.line)
         return "name"
         
         
