@@ -58,12 +58,12 @@ class Template:
         self.anonymous = 0
         
         #Setup State Machine
-        self.fsm = StateMachine()
+        self.fsm = StateMachine(verbose=True)
         self.fsm.addState("start", self.start_state)
         self.fsm.setStart("start")
         self.fsm.addState("name", self.name_state)
         self.fsm.addState("value", self.value_state)
-        self.fsm.addState("end", self.end_state, end=True)
+        self.fsm.addState("end", None, end=True)
         
         self.p_start = re.compile(r"\{\{")
         self.p_end = re.compile(r"\}\}")
@@ -83,13 +83,14 @@ class Template:
     """
     """Start bzw. bisher keine Vorlage gefunden"""
     def start_state(self):
+        print("sline: "+self.article.line)
         start = self.p_start.search(self.article.line)
         if not start:
             self.article.__next__()
             return "start"
             
         cursor = { "line" : self.article.cursor["line"] }
-        cursor["char"] = start.span()[1]
+        cursor["char"] = start.span()[1] + self.article.cursor["char"]
         self.article.cursor = cursor
         print("line: "+self.article.line)
         return "name"
@@ -103,18 +104,20 @@ class Template:
         #Hinteren Vorlagenkram abhacken
         for slicer in self.slicers:
             match = slicer.search(line)
-            if match:
-                if self.slicers[slicer] == "start":
-                    raise Exception("template in template name: " + line)
-                line = line[:match.span()[0]]
-                self.article.cursor = match.span()[1]
-                newState = self.slicers[slicer]
+            if not match:
+                continue
+            if self.slicers[slicer] == "start":
+                raise Exception("template in template name: " + line)
+            line = line[:match.span()[0]]
+            self.article.cursor = match.span()[1] + self.article.cursor["char"]
+            print("span: "+str(match.span()))
+            newState = self.slicers[slicer]
                 
         line = line.strip()
         if line == "":
             return "name"
             
-        name = line.strip()
+        self.name = line.strip()
         
         if newState:
             return newState
@@ -137,7 +140,8 @@ class Template:
                 
                 newState = self.slicers[slicer]
                 
-            if newState:
+                c = self.article.cursor["char"] + match.span()[1]
+                self.article.cursor = c
                 return newState
                 
     
@@ -156,7 +160,9 @@ class Template:
             
                 newState = self.slicers[slicer]
                 span = match.span()
+                print("slicerline: "+line)
                 line = line[:span[0]]
+                print("slicerstate: "+newState+"; span: "+str(span)+"; line: "+line)
                 
             value += line
             
@@ -170,11 +176,16 @@ class Template:
                         "endcursor" : self.article.cursor}
                 self.subtemplates.append(subt)
                 newState = "continue"
-                value += self.article.extract(cursor, subt["endcursor"])
+                print("newlinesubt: " + self.article.line)
+                asString = self.article.extract(cursor, subt["endcursor"])
+                value += asString
+                print("asString: "+asString)
+                self.article.cursor = subt["endcursor"]
             
             #v.a. Cursor setzen
             elif newState is not "continue":
-                self.article.cursor = span[1]
+                self.article.cursor = span[1] + self.article.cursor["char"]
+                print("break; newState: "+newState+"; line: "+self.article.line)
                 break
                 
             try:
@@ -194,7 +205,7 @@ class Template:
             key = split[0]
             if "{{" in key:
                 raise Exception("template in key: "+key)
-            self.values[key] = value
+            self.values[key] = value.strip()
             
         #anonyme values
         else:
@@ -205,12 +216,9 @@ class Template:
                 else:
                     break
                     
-            self.values[key] = split[0]
+            self.values[key] = split[0].strip()
             
         return newState
-        
-    def end_state(self):
-        print("Vorlage geparst: " + self.name)
                 
             
             
@@ -295,19 +303,19 @@ class Article:
     def extract(self, start, end):
         #Nur eine Zeile
         if start["line"] == end["line"]:
-            return text[start["line"]][start["char"]:end["char"]]
+            return self.text[start["line"]][start["char"]:end["char"]]
         
         r = ""
         for i in range(start["line"], end["line"] + 1):
             #Anfangszeile
             if i == start["line"]:
-                r += text[i][start["char"]:] + "\n"
+                r += self.text[i][start["char"]:] + "\n"
             #Endzeile
             elif i == end["line"]:
-                return r + text[i][:end["char"]]
+                return r + self.text[i][:end["char"]]
                 
             else:
-                r += text[i] + "\n"
+                r += self.text[i] + "\n"
                 
         #Sollte eigentlich nicht auftreten, da return in Endzeile
         raise RuntimeError()
@@ -324,9 +332,9 @@ class Article:
     def __next__(self):
         if self._cursor["modified"]:
             self._cursor["modified"] = False
-        else:
-            self._cursor["line"] += 1
-            self._cursor["char"] = 0
+        #else:
+        self._cursor["line"] += 1
+        self._cursor["char"] = 0
             
         try:
             line = self.text[self._cursor["line"]]
