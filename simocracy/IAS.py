@@ -402,7 +402,7 @@ def updateArticle():
     #Infoboxen einlesen
     print("Lese Portal ein")
     wiki.login()
-    vz = wiki.readVZ(wiki.openArticle(wiki.vz))
+    vz = wiki.readVZ(wiki.Article(wiki.vz))
 
     #Alle Staaten zusammensammeln
     alleStaaten = []

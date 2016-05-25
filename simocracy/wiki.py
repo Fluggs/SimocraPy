@@ -562,14 +562,14 @@ buendnisse: array aus dicts; keys:
     
 zB Zugriff auf Staatenname: r["staaten"][0]["name"]
 """
-def readVZ(site):
+def readVZ(article):
 
-    if not site:
+    if not article:
         raise Exception("übergebene Seite leer")
     text = []
-    for line in site:
+    for line in article:
         text.append(line)
-    del site
+    del article
         
     """
     Staaten
