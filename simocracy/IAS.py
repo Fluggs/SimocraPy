@@ -645,6 +645,25 @@ def updateArticle():
     wiki.editArticle("Vorlage:IAS", text)
 
     """
+    print("Lese Infoboxen ein")
+    for staat in alleStaaten:
+        article = wiki.Article(staat["uri"])
+        article.parseTemplates()
+        infobox = None
+        for t in article.templates:
+            if t.name is "Infobox Staat":
+                infobox = t.values
+                
+        for key in infobox:
+            infobox[key] = wiki.globalizeLinks(infobox[key], staat["uri"])
+        infobox = normalizeInfobox(infobox, staat["uri"])
+        if not infobox == None:
+            staat["infobox"] = infobox
+        #Stellt sicher, dass jeder Staatseintrag eine Infobox hat
+        else:
+            print("Warnung: "+staat["uri"]+" hat keine Infobox Staat", file=sys.stderr)
+            continue
+    
     #Vorlage:Anzahl Staaten
     text = "<onlyinclude><includeonly>" + str(len(alleStaaten))
     text = text + "</includeonly></onlyinclude>\n"

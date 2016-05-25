@@ -41,10 +41,15 @@ imageKeywords = [
 
 opener = None
 
+#Flow Control für falls kein Template im Artikel gefunden wird
+class NoTemplate(Exception):
+    pass
+
 """
 Geparste Vorlage in Artikel
 """
 class Template:
+
     def __init__(self, article):
         self.article = article
         self.name = None
@@ -88,7 +93,10 @@ class Template:
     def start_state(self):
         start = self.p_start.search(self.article.line)
         if not start:
-            self.article.__next__()
+            try:
+                self.article.__next__()
+            except StopIteration:
+                raise Exception("incomplete Template: " + name)
             return "start"
             
         cursor = { "line" : self.article.cursor["line"] }
@@ -129,7 +137,7 @@ class Template:
             try:
                 line = self.article.__next__()
             except StopIteration:
-                raise Exception("incomplete Template")
+                raise NoTemplate()
                 
             for slicer in self.slicers:
                 match = slicer.search(line)
@@ -220,7 +228,7 @@ class Template:
                 line = self.article.__next__()
                 value += "\n"
             except StopIteration:
-                raise Exception("incomplete Template: " + name)
+                raise NoTemplate()
                 
         #value parsen
         split = value.split("=")
@@ -260,6 +268,7 @@ class Article:
     name: Artikelname
     """
     def __init__(self, name, redirect=True):
+        self.templates = None
         self.text = []
         self._cursor = { "line":-1, "char":0, "modified":False }
         
@@ -451,47 +460,16 @@ class Article:
             
     """
     Parst alle Vorlagen im Artikel text und gibt ein dict zurueck.
+    Setzt den Cursor zurück.
     """
     def parseTemplates(self):
-        dict = {}
-        #Anfang der Vorlage suchen
-        ic = re.IGNORECASE
-        pattern = re.compile(r"\s*\{\{\s*"+re.escape(template)+"\s*$", ic)
-        found = False
-        for line in site:
-            line = line.decode('utf8')
-            if pattern.search(line) is not None:
-                found = True
+        self.templates = []
+        self.resetCursor()
+        while True:
+            try:
+                templates.append(Template(self))
+            except NoTemplate:
                 break
-
-        if not found:
-            raise NoSuchTemplate(template + " in " + site)
-
-        pattern = re.compile(r"^\s*\|\s*([^=]*)\s*=\s*(.+)\s*$")
-        pattern_end = re.compile(r"\}\}")
-        pattern_start = re.compile(r"\{\{")
-        templateCounter = 0
-
-        for line in site:
-            line = line.decode('utf-8')
-            if pattern_end.search(line):
-                templateCounter += 1
-            if pattern_end.search(line):
-                #Vorlage template zuende
-                if templateCounter == 0:
-                    if dict == {}:
-                        return None #?!
-                    return dict
-                #Irgendeine andere Vorlage geht zuende
-                else:
-                    templateCounter -= 1
-            if pattern.match(line) is not None:
-                kvPair = re.findall(pattern, line)
-                value = kvPair[0][1]
-                if re.match(r'<!--(.*?)-->$', value):
-                    continue
-                else:
-                    dict[kvPair[0][0]] = value
 
 """
 Wird von parseTemplate geworfen, wenn die Vorlage
