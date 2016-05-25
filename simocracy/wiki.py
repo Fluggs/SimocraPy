@@ -68,12 +68,15 @@ class Template:
         self.p_start = re.compile(r"\{\{")
         self.p_end = re.compile(r"\}\}")
         self.p_val = re.compile(r"\s*\|\s*([^=|}]*)\s*=?\s*([^|}]*)")
+        self.p_linkstart = re.compile(r"\[\[")
+        self.p_link = re.compile(r"\[\[(.*?)\]\]")
         self.p_slicer = re.compile(r"\|")
         #Marker für nächsten Abschnitt; dh Ende der Vorlage oder nächster Wert
         self.slicers = {
             self.p_end    : "end",
             self.p_slicer : "value",
             self.p_start  : "start",
+            self.p_linkstart : "link",
         }
         
         self.fsm.run()
@@ -83,7 +86,6 @@ class Template:
     """
     """Start bzw. bisher keine Vorlage gefunden"""
     def start_state(self):
-        print("sline: "+self.article.line)
         start = self.p_start.search(self.article.line)
         if not start:
             self.article.__next__()
@@ -92,7 +94,6 @@ class Template:
         cursor = { "line" : self.article.cursor["line"] }
         cursor["char"] = start.span()[1] + self.article.cursor["char"]
         self.article.cursor = cursor
-        print("line: "+self.article.line)
         return "name"
         
         
@@ -102,15 +103,16 @@ class Template:
         newState = None
         
         #Hinteren Vorlagenkram abhacken
+        startCursor = self.article.cursor
         for slicer in self.slicers:
             match = slicer.search(line)
             if not match:
                 continue
             if self.slicers[slicer] == "start":
-                raise Exception("template in template name: " + line)
+                raise Exception("template in template name: " + line.rstrip('\n'))
+            
             line = line[:match.span()[0]]
-            self.article.cursor = match.span()[1] + self.article.cursor["char"]
-            print("span: "+str(match.span()))
+            self.article.cursor = match.span()[1] + startCursor["char"]
             newState = self.slicers[slicer]
                 
         line = line.strip()
@@ -150,8 +152,8 @@ class Template:
         #hinteren Kram abhacken; mehrere Zeilen zusammensammeln
         newState = "continue"
         value = ""
-        line = self.article.line
         while True:
+            line = self.article.line
             span = None
             for slicer in self.slicers:
                 match = slicer.search(line)
@@ -160,32 +162,58 @@ class Template:
             
                 newState = self.slicers[slicer]
                 span = match.span()
-                print("slicerline: "+line)
                 line = line[:span[0]]
-                print("slicerstate: "+newState+"; span: "+str(span)+"; line: "+line)
                 
             value += line
             
-            #nested template
-            if newState is "start":
+            #link parsen [[ ... ]]
+            if newState is "link":
                 cursor = self.article.cursor
-                cursor["char"] = span[0]
+                self.article.cursor = cursor["char"] + span[0]
+                del(cursor)
+                m = self.p_link.match(self.article.line)
+                endCursor = None
+                asString = None
+                
+                #Angetäuschtes [[ ohne Link
+                if m is None:
+                    endCursor = self.article.cursor
+                    endCursor["char"] += 2
+                    asString = "[["
+                #Echter Link
+                else:
+                    endCursor = self.article.cursor
+                    endCursor["char"] += m.span()[1]
+                    asString = self.article.extract(self.article.cursor,endCursor)
+                    
+                value += asString
+                self.article.cursor = endCursor
+                
+                newState = "continue"
+                continue
+            
+            #nested template
+            elif newState is "start":
+                cursor = self.article.cursor
+                cursor["char"] += span[0]
+                self.article.cursor = cursor
+                
                 template = Template(self.article)
                 subt = {"startcursor" : cursor,
                         "template" : template,
                         "endcursor" : self.article.cursor}
                 self.subtemplates.append(subt)
-                newState = "continue"
-                print("newlinesubt: " + self.article.line)
+                
                 asString = self.article.extract(cursor, subt["endcursor"])
                 value += asString
-                print("asString: "+asString)
                 self.article.cursor = subt["endcursor"]
+                
+                newState = "continue"
+                continue
             
             #v.a. Cursor setzen
             elif newState is not "continue":
                 self.article.cursor = span[1] + self.article.cursor["char"]
-                print("break; newState: "+newState+"; line: "+self.article.line)
                 break
                 
             try:
@@ -464,7 +492,6 @@ class Article:
                     continue
                 else:
                     dict[kvPair[0][0]] = value
-                    print(kvPair[0][0] + " = " + value)
 
 """
 Wird von parseTemplate geworfen, wenn die Vorlage
@@ -926,7 +953,6 @@ def parseTemplate(template, site):
                 continue
             else:
                 dict[kvPair[0][0]] = value
-                print(kvPair[0][0] + " = " + value)
 
 
 """
