@@ -69,6 +69,7 @@ class Template:
         self.fsm.addState("name", self.name_state)
         self.fsm.addState("value", self.value_state)
         self.fsm.addState("end", None, end=True)
+        self.fsm.addState("link"), self.link_state)
         
         self.p_start = re.compile(r"\{\{")
         self.p_end = re.compile(r"\}\}")
@@ -85,6 +86,9 @@ class Template:
         }
         
         self.fsm.run()
+        
+    def link_state(self):
+        print("cursor: "+str(self.article.cursor))
         
     """
     State Machine Handlers
@@ -116,13 +120,13 @@ class Template:
             match = slicer.search(line)
             if not match:
                 continue
-            #TODO
-            #if self.slicers[slicer] == "start":
-            #    raise Exception("template in template name: " + line.rstrip('\n'))
             
             line = line[:match.span()[0]]
             self.article.cursor = match.span()[1] + startCursor["char"]
             newState = self.slicers[slicer]
+            
+        if self.slicers[slicer] == "start":
+            raise Exception("template in template name: " + line.rstrip('\n'))
                 
         line = line.strip()
         if line == "":
@@ -801,6 +805,7 @@ def getStateNames(wikilink):
     r["sortname"] = sortkey
     return r
     
+
 """
 Extrahiert den Dateinamen der Flagge
 aus der Flaggeneinbindung flagcode.
@@ -860,81 +865,6 @@ def extractFlag(flagcode):
     
     for element in xmlRoot.iterfind('query/pages/page/imageinfo/ii'):
         return element.attrib['url']
-
-
-"""
-Oeffnet einen Wikiartikel; loest insb. Redirections auf.
-Gibt ein "file-like object" (doc)  zurueck.
-article: Artikelname
-"""
-def openArticle(article, redirect=True):
-    qry = url + "api.php?format=xml&action=query&titles=" + urllib.parse.quote(article)
-    if redirect:
-        qry = qry + "&redirects"
-    response = opener.open(qry)
-    
-    #Leerzeile ueberspringen
-    response.readline()
-
-    #XML einlesen
-    xml = ET.fromstring(response.readline())
-
-    article = xml.find("query").find("pages")
-    #Spezialseiten abfangen (z.B. Hochladen)
-    if not article:
-        raise Exception("Spezialseite")
-
-    article = article.find("page").attrib["title"]
-    print("Öffne " + article)
-    try:
-        return opener.open(url + urllib.parse.quote(article) + "?action=raw")
-    except urllib.error.HTTPError:
-        raise Exception("404: " + article)
-
-
-"""
-Parst das erste Vorkommnis der Vorlage template im Artikel text
-und gibt ein dict zurueck.
-"""
-def parseTemplate(template, site):
-    dict = {}
-    #Anfang der Vorlage suchen
-    pattern = re.compile(r"\s*\{\{\s*"+re.escape(template)+"\s*$", re.IGNORECASE)
-    found = False
-    for line in site:
-        line = line.decode('utf8')
-        if pattern.search(line) is not None:
-            found = True
-            break
-
-    if not found:
-        raise NoSuchTemplate(template + " in " + site)
-
-    pattern = re.compile(r"^\s*\|\s*([^=]*)\s*=\s*(.+)\s*$")
-    pattern_end = re.compile(r"\}\}")
-    pattern_start = re.compile(r"\{\{")
-    templateCounter = 0
-
-    for line in site:
-        line = line.decode('utf-8')
-        if pattern_end.search(line):
-            templateCounter += 1
-        if pattern_end.search(line):
-            #Vorlage template zuende
-            if templateCounter == 0:
-                if dict == {}:
-                    return None #?!
-                return dict
-            #Irgendeine andere Vorlage geht zuende
-            else:
-                templateCounter -= 1
-        if pattern.match(line) is not None:
-            kvPair = re.findall(pattern, line)
-            value = kvPair[0][1]
-            if re.match(r'<!--(.*?)-->$', value):
-                continue
-            else:
-                dict[kvPair[0][0]] = value
 
 
 """
