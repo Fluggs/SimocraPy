@@ -63,7 +63,7 @@ class Template:
         self.anonymous = 0
         
         #Setup State Machine
-        self.fsm = StateMachine(verbose=True)
+        self.fsm = StateMachine()
         self.fsm.addState("start", self.start_state)
         self.fsm.setStart("start")
         self.fsm.addState("name", self.name_state)
@@ -96,9 +96,7 @@ class Template:
             try:
                 self.article.__next__()
             except StopIteration:
-                c = self.article.cursor
-                msg = "line "+str(c["line"])+", column "+str(c["char"])
-                raise Exception("incomplete Template in " + msg)
+                raise NoTemplate()
             return "start"
             
         cursor = { "line" : self.article.cursor["line"] }
@@ -270,6 +268,7 @@ class Article:
     name: Artikelname
     """
     def __init__(self, name, redirect=True):
+        self.title = None
         self.templates = None
         self.text = []
         self._cursor = { "line":-1, "char":0, "modified":False }

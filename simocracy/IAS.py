@@ -653,6 +653,9 @@ def updateArticle():
         for t in article.templates:
             if t.name is "Infobox Staat":
                 infobox = t.values
+        
+        if infobox is None:
+            print("Keine Infobox: "+staat["uri"])
                 
         for key in infobox:
             infobox[key] = wiki.globalizeLinks(infobox[key], staat["uri"])
