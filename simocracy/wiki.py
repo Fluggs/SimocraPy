@@ -69,7 +69,7 @@ class Template:
         self.fsm.addState("name", self.name_state)
         self.fsm.addState("value", self.value_state)
         self.fsm.addState("end", None, end=True)
-        self.fsm.addState("link"), self.link_state)
+        self.fsm.addState("link", self.link_state)
         
         self.p_start = re.compile(r"\{\{")
         self.p_end = re.compile(r"\}\}")
