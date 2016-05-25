@@ -428,6 +428,31 @@ def updateArticle():
         else:
             print("Warnung: "+staat["uri"]+" hat keine Infobox Staat", file=sys.stderr)
             continue
+    """
+    
+    print("Lese Infoboxen ein")
+    for staat in alleStaaten:
+        article = wiki.Article(staat["uri"])
+        article.parseTemplates()
+        infobox = None
+        for t in article.templates:
+            print(t.name)
+            if t.name == "Infobox Staat":
+                infobox = t.values
+        
+        if infobox is None:
+            print("Keine Infobox: "+staat["uri"])
+            continue
+                
+        for key in infobox:
+            infobox[key] = wiki.globalizeLinks(infobox[key], staat["uri"])
+        infobox = normalizeInfobox(infobox, staat["uri"])
+        if not infobox == None:
+            staat["infobox"] = infobox
+        #Stellt sicher, dass jeder Staatseintrag eine Infobox hat
+        else:
+            print("Warnung: "+staat["uri"]+" hat keine Infobox Staat", file=sys.stderr)
+            continue
     
     #Einzeleinträge aufsetzen
     #Jahr ausrechnen
@@ -643,31 +668,6 @@ def updateArticle():
     text += "[[Kategorie:Internationales Amt für Statistiken]]"
     text += "[[Kategorie:Fluggbot]]"
     wiki.editArticle("Vorlage:IAS", text)
-
-    """
-    print("Lese Infoboxen ein")
-    for staat in alleStaaten:
-        article = wiki.Article(staat["uri"])
-        article.parseTemplates()
-        infobox = None
-        for t in article.templates:
-            print(t.name)
-            if t.name == "Infobox Staat":
-                infobox = t.values
-        
-        if infobox is None:
-            print("Keine Infobox: "+staat["uri"])
-            continue
-                
-        for key in infobox:
-            infobox[key] = wiki.globalizeLinks(infobox[key], staat["uri"])
-        infobox = normalizeInfobox(infobox, staat["uri"])
-        if not infobox == None:
-            staat["infobox"] = infobox
-        #Stellt sicher, dass jeder Staatseintrag eine Infobox hat
-        else:
-            print("Warnung: "+staat["uri"]+" hat keine Infobox Staat", file=sys.stderr)
-            continue
     
     #Vorlage:Anzahl Staaten
     text = "<onlyinclude><includeonly>" + str(len(alleStaaten))
