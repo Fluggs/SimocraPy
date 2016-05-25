@@ -96,7 +96,9 @@ class Template:
             try:
                 self.article.__next__()
             except StopIteration:
-                raise Exception("incomplete Template: " + name)
+                c = self.article.cursor
+                msg = "line "+str(c["line"])+", column "+str(c["char"])
+                raise Exception("incomplete Template in " + msg)
             return "start"
             
         cursor = { "line" : self.article.cursor["line"] }
