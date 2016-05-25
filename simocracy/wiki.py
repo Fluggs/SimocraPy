@@ -89,6 +89,7 @@ class Template:
         
     def link_state(self):
         print("cursor: "+str(self.article.cursor))
+        raise Exception("link state")
         
     """
     State Machine Handlers
@@ -125,8 +126,9 @@ class Template:
             self.article.cursor = match.span()[1] + startCursor["char"]
             newState = self.slicers[slicer]
             
-        if self.slicers[slicer] == "start":
-            raise Exception("template in template name: " + line.rstrip('\n'))
+        #TODO
+        #if self.slicers[slicer] == "start":
+        #    raise Exception("template in template name: " + line.rstrip('\n'))
                 
         line = line.strip()
         if line == "":
@@ -398,72 +400,6 @@ class Article:
         nothing = 1
         name = 2
         value = 3
-        
-        
-    """
-    Parst die erste Vorlage im Artikel und gibt ein dict zurück.
-    """
-    def parseTemplate(self):
-        template = Template()
-        p_start = re.compile(r"\{\{\s*([^|}]*)\s*")
-        p_name = re.compile(r"([^|}\s][^|}]*)")
-        p_end = re.compile(r"\}\}")
-        p_val = re.compile(r"\s*\|\s*([^=|}]*)\s*=?\s*([^|}]*)")
-        p_contval = re.compile(r"([^|}]+)")
-        state = TState.nothing
-        value = None
-        
-        for line in self:
-            #bisher nicht in ner Vorlage
-            if state == TState.nothing:
-                start = p_start.search(line)
-                if not start:
-                    continue
-                    
-                name = start.groups()[0].strip()
-                if name == "":
-                    state = TState.name
-                else:
-                    template.name = name
-                    state = TState.value
-                    line = _cursor["line"]
-                    char = start.span()[1]
-                    _cursor = {"line":line, "char":char}
-                    
-            #Wir haben nur {{ gefunden,
-            #aber nicht den Namen der Vorlage
-            elif state == TState.name:
-                name = p_name.search(line)
-                if name:
-                    name = name.groups()[0]
-                    state = TState.value
-                    _cursor = {"line":line, "char":name.span()[1]}
-                    
-            #Wir befinden uns im Werteteil der Vorlage
-            #und müssen mehrere Zeilen umfassende Werte erkennen
-            elif state == TState.value:
-                #Neuer Wert
-                if value == None:
-                    val = p_val.match(line)
-                    
-                    if not val:
-                        raise SyntaxErr(line)
-                        
-                    #anonyme Werte abfangen
-                    if val.groups()[1].strip() == "":
-                        template.anonymous += 1
-                        value = [
-                            str(template.anonymous),
-                            val.groups()[0]]
-                            #Problem: "| wert="
-                    
-                #Sind noch im letzten Wert und schlagen dem alles zu, was vor
-                #| oder }} kommt
-                else:
-                    val = p_contval.match(line)
-                    
-        raise Exception("deprecated")
-                    
                 
             
     """
@@ -478,13 +414,7 @@ class Article:
                 self.templates.append(Template(self))
             except NoTemplate:
                 break
-
-"""
-Wird von parseTemplate geworfen, wenn die Vorlage
-nicht im Artikel ist
-"""
-class NoSuchTemplate(Exception):
-    pass
+                
 
 """
 Loggt den User ins Wiki ein.
@@ -829,13 +759,12 @@ def extractFlag(flagcode):
         
         #Vorlage herunterladen
         try:
-            response = openArticle("Vorlage:" + flagcode)
+            response = Article("Vorlage:" + flagcode)
         except:
             raise Exception("konnte nicht öffnen: "+flagcode)
         text = []
 
         for line in response:
-            line = line.decode('utf-8')
             if re.search(r'include>', line):
                 break
         

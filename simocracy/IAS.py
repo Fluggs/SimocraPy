@@ -414,21 +414,6 @@ def updateArticle():
         alleStaaten.append(staat)
 
     alleStaaten = sorted(alleStaaten, key=lambda k: k['sortname'])
-
-    """
-    print("Lese Infoboxen ein")
-    for staat in alleStaaten:
-        infobox = wiki.parseTemplate("Infobox Staat", wiki.openArticle(staat["uri"]))
-        for key in infobox:
-            infobox[key] = wiki.globalizeLinks(infobox[key], staat["uri"])
-        infobox = normalizeInfobox(infobox, staat["uri"])
-        if not infobox == None:
-            staat["infobox"] = infobox
-        #Stellt sicher, dass jeder Staatseintrag eine Infobox hat
-        else:
-            print("Warnung: "+staat["uri"]+" hat keine Infobox Staat", file=sys.stderr)
-            continue
-    """
     
     print("Lese Infoboxen ein")
     for staat in alleStaaten:
@@ -436,7 +421,6 @@ def updateArticle():
         article.parseTemplates()
         infobox = None
         for t in article.templates:
-            print(t.name)
             if t.name == "Infobox Staat":
                 infobox = t.values
         
