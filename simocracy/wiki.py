@@ -578,7 +578,7 @@ def readVZ(article):
     i = 0
     found = False
     while True:
-        if re.match(b'^\s*|\s*Staaten\s*=\s*', text[i]):
+        if re.match('^\s*|\s*Staaten\s*=\s*', text[i]):
             i += 1
             found = True
             break
@@ -589,7 +589,7 @@ def readVZ(article):
     
     # erstes "{{!}}-" suchen
     while True:
-        if text[i].startswith(b'{{!}}-'):
+        if text[i].startswith('{{!}}-'):
             found = True
             i += 1
             break
@@ -600,7 +600,7 @@ def readVZ(article):
     
     # zweites "{{!}}-" suchen
     while True:
-        if text[i].startswith(b'{{!}}-'):
+        if text[i].startswith('{{!}}-'):
             found = True
             i += 1
             break
@@ -620,16 +620,16 @@ def readVZ(article):
     zahl_p = re.compile(r'\{\{!\}\}\s*(\(*[\d-]*\)*)\s*')
     while True:
         #Tabellenende
-        if text[i].startswith(b'{{!}}}'):
+        if text[i].startswith('{{!}}}'):
             i += 1
             break
         #Tabelleneintrag
-        if not text[i].startswith(b'{{!}}'):
+        if not text[i].startswith('{{!}}'):
             i += 1
             continue
         
         #Datensatz zuende
-        if text[i].startswith(b'{{!}}-'):
+        if text[i].startswith('{{!}}-'):
             if entryCtr == 5:
                 staaten.append(dict.copy())
                 dict.clear()
@@ -638,7 +638,7 @@ def readVZ(article):
             continue
             
         key = ""
-        value = text[i].strip().decode('utf-8')
+        value = text[i].strip()
         
         #Ins dict eintragen; evtl value korrigieren
         if entryCtr == 0:
@@ -694,7 +694,7 @@ def readVZ(article):
     #"|Spielerlose_Staaten=" suchen
     found = False
     while True:
-        line = text[i].decode('utf-8')
+        line = text[i]
         if i >= len(text):
             break
         if re.match(r'\s*\|\s*Spielerlose_Staaten\s*=', line) is not None:
@@ -710,7 +710,7 @@ def readVZ(article):
     dict = {}
     spielerlos = []
     while True:
-        line = text[i].decode('utf-8')
+        line = text[i]
         #Tabellenende
         if line.startswith("|") or i >= len(text):
             break
@@ -733,7 +733,7 @@ def readVZ(article):
     #"|Militärbündnisse" suchen
     found = False
     while True:
-        line = text[i].decode('utf-8')
+        line = text[i]
         if i >= len(text):
             break
         if re.match(r'^\s*|\s*Milit', line) is not None and re.search(r'ndnisse\s*=\s*$', line) is not None:
@@ -751,7 +751,7 @@ def readVZ(article):
     bnds = []
     bndeintrag_p = re.compile(r'\*\s*(\[\[[^]]*\]\])\s*\[\[([^]]*)\]\]')
     while True:
-        line = text[i].decode('utf-8')
+        line = text[i]
         #Tabellenende
         if line.startswith('{{!}}'):
             i += 1
