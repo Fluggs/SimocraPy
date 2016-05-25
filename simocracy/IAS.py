@@ -651,7 +651,8 @@ def updateArticle():
         article.parseTemplates()
         infobox = None
         for t in article.templates:
-            if t.name is "Infobox Staat":
+            print(t.name)
+            if t.name == "Infobox Staat":
                 infobox = t.values
         
         if infobox is None:
