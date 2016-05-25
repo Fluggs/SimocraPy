@@ -116,8 +116,9 @@ class Template:
             match = slicer.search(line)
             if not match:
                 continue
-            if self.slicers[slicer] == "start":
-                raise Exception("template in template name: " + line.rstrip('\n'))
+            #TODO
+            #if self.slicers[slicer] == "start":
+            #    raise Exception("template in template name: " + line.rstrip('\n'))
             
             line = line[:match.span()[0]]
             self.article.cursor = match.span()[1] + startCursor["char"]
@@ -145,8 +146,10 @@ class Template:
                     continue
                 
                 prematch = line[:match.span()[0]]
-                if prematch.strip() is not "":
-                    raise Exception("template name over multiple lines")
+                
+                #TODO
+                #if prematch.strip() is not "":
+                #    raise Exception("template name over multiple lines: "+prematch.strip())
                 
                 newState = self.slicers[slicer]
                 
