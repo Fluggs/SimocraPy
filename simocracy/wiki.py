@@ -467,7 +467,7 @@ class Article:
         self.resetCursor()
         while True:
             try:
-                templates.append(Template(self))
+                self.templates.append(Template(self))
             except NoTemplate:
                 break
 
