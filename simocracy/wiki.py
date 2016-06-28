@@ -573,10 +573,10 @@ def readVZ(article):
         #Ins dict eintragen; evtl value korrigieren
         if entryCtr == 0:
             value = value.replace('{{!}}', '').strip()
-            try:
-                dict["flagge"] = extractFlag(value)
-            except:
-                raise Exception("fehler bei Flaggencode "+value)
+            #try:
+            #    dict["flagge"] = extractFlag(value)
+            #except:
+            #    raise Exception("fehler bei Flaggencode "+value)
             
         elif entryCtr == 1:
             tokens = re.split(name_p, value)
@@ -646,7 +646,7 @@ def readVZ(article):
             break
         if eintrag_p.match(line) is not None:
             tokens = re.split(eintrag_p, line)
-            dict["flagge"] = extractFlag(tokens[1])
+            #dict["flagge"] = extractFlag(tokens[1])
             names = getStateNames(tokens[2])
             dict["uri"] = names["uri"]
             dict["name"] = names["name"]
@@ -745,7 +745,7 @@ def extractFlag(flagcode):
     if re.match(r'\{\{', flagcode) is not None:
         #flagcode.replace(r"{{", "")
         #flagcode.replace(r"|40}}", "")
-        mitPx_p = re.compile(r'\{\{(.+?)\|\d*\}\}')
+        mitPx_p = re.compile(r'\{\{(.+?)\|[^}]*\}\}')
         ohnePx_p = re.compile(r'\{\{(.+?)\}\}')
         pattern = None
         if mitPx_p.match(flagcode):
