@@ -418,7 +418,7 @@ def updateArticle():
     #Ajin ignorieren
     toRemove = []
     for staat in alleStaaten:
-        if "Singa Shang" in staat["uri"]:
+        if "Singa Shang" in staat["uri"] or "Ajin" in staat["uri"]:
             toRemove.append(staat)
     for el in toRemove:
         alleStaaten.remove(el)
