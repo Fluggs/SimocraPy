@@ -414,6 +414,14 @@ def updateArticle():
         alleStaaten.append(staat)
 
     alleStaaten = sorted(alleStaaten, key=lambda k: k['sortname'])
+
+    #Ajin ignorieren
+    toRemove = []
+    for staat in alleStaaten:
+        if "Singa Shang" in staat["uri"]:
+            toRemove.append(staat)
+    for el in toRemove:
+        alleStaaten.remove(el)
     
     print("Lese Infoboxen ein")
     for staat in alleStaaten:
