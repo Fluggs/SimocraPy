@@ -140,26 +140,29 @@ class Template:
             return newState
             
         #Nächsten Status in nächster Zeile suchen
+        newState = None
         while True:
             try:
                 line = self.article.__next__()
             except StopIteration:
                 raise NoTemplate()
-                
+
+            span = [len(line)+1, len(line)+1]                
             for slicer in self.slicers:
                 match = slicer.search(line)
                 if not match:
                     continue
-                
-                prematch = line[:match.span()[0]]
-                
-                #TODO
-                #if prematch.strip() is not "":
-                #    raise Exception("template name over multiple lines: "+prematch.strip())
-                
+                if not match.span()[0] < span[0]:
+                    continue
+
+                span = match.span()
                 newState = self.slicers[slicer]
-                
-                c = self.article.cursor["char"] + match.span()[1]
+
+                #TODO
+                #template name over multiple lines
+
+            if newState:
+                c = self.article.cursor["char"] + span[1]
                 self.article.cursor = c
                 return newState
                 
