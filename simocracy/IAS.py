@@ -367,6 +367,7 @@ def normalizeInfobox(infobox, name):
 
     return infobox
 
+
 """
 Erstellt eine Liste der drei meistgenutzten (nach f(w))
 Währungen in aufsteigender Reihenfolge:
@@ -397,23 +398,7 @@ def sumUpWaehrung(w, f):
     return erg[-3:]
 
 
-def updateArticle():
-
-    #Infoboxen einlesen
-    print("Lese Portal ein")
-    wiki.login()
-    vz = wiki.readVZ(wiki.Article(wiki.vz))
-
-    #Alle Staaten zusammensammeln
-    alleStaaten = []
-    for staat in vz["staaten"]:
-        staat['spielerlos'] = False
-        alleStaaten.append(staat)
-    for staat in vz["spielerlos"]:
-        staat['spielerlos'] = True
-        alleStaaten.append(staat)
-
-    alleStaaten = sorted(alleStaaten, key=lambda k: k['sortname'])
+def updateArticle(staaten):
 
     #Ajin ignorieren
     #toRemove = []
@@ -422,29 +407,12 @@ def updateArticle():
     #        toRemove.append(staat)
     #for el in toRemove:
     #    alleStaaten.remove(el)
-    
-    print("Lese Infoboxen ein")
-    for staat in alleStaaten:
-        article = wiki.Article(staat["uri"])
-        article.parseTemplates()
-        infobox = None
-        for t in article.templates:
-            if t.name == "Infobox Staat":
-                infobox = t.values
-        
-        if infobox is None:
-            print("Keine Infobox: "+staat["uri"])
-            continue
-                
-        for key in infobox:
-            infobox[key] = wiki.globalizeLinks(infobox[key], staat["uri"])
-        infobox = normalizeInfobox(infobox, staat["uri"])
-        if not infobox == None:
-            staat["infobox"] = infobox
-        #Stellt sicher, dass jeder Staatseintrag eine Infobox hat
-        else:
-            print("Warnung: "+staat["uri"]+" hat keine Infobox Staat", file=sys.stderr)
-            continue
+
+    #Infoboxen normalisieren
+    for staat in staaten:
+        if not staat["infobox"] == None:
+            staat["infobox"] = normalizeInfobox(staat["infobox"], staat["uri"])
+
     
     #Einzeleinträge aufsetzen
     #Jahr ausrechnen
@@ -468,7 +436,7 @@ def updateArticle():
     #Infotabellen-dicts auslesen und Vorlageneinträge zusammensetzen
     text_stats = ""
     text_info = ""
-    for staat in alleStaaten:
+    for staat in staaten:
         
         #Fläche
         flaeche = None
@@ -660,9 +628,18 @@ def updateArticle():
     text += "[[Kategorie:Internationales Amt für Statistiken]]"
     text += "[[Kategorie:Fluggbot]]"
     wiki.editArticle("Vorlage:IAS", text)
+
+    #Staaten zählen
+    bespielt = 0
+    spielerlos = 0
+    for staat in staaten:
+        if staat["spielerlos"]:
+            spielerlos += 1
+        else:
+            bespielt += 1
     
     #Vorlage:Anzahl Staaten
-    text = "<onlyinclude><includeonly>" + str(len(alleStaaten))
+    text = "<onlyinclude><includeonly>" + str(len(staaten))
     text = text + "</includeonly></onlyinclude>\n"
     text = text + "Diese Vorlage gibt die aktuelle Anzahl der Staaten in Simocracy "
     text = text + "zurück. Gezählt werden alle Staaten des Planeten.<br>\nSie wird auf "
@@ -671,7 +648,7 @@ def updateArticle():
     wiki.editArticle("Vorlage:Anzahl_Staaten", text)
 
     #Vorlage:Anzahl Freie Staaten
-    text = "<onlyinclude><includeonly>" + str(len(vz["spielerlos"]))
+    text = "<onlyinclude><includeonly>" + str(spielerlos)
     text = text + "</includeonly></onlyinclude>\n"
     text = text + "Diese Vorlage gibt die aktuelle Anzahl der freien Staaten in "
     text = text + "Simocracy zurück. Gezählt werden alle Staaten des Planeten.<br>\nSie "
@@ -680,7 +657,7 @@ def updateArticle():
     wiki.editArticle("Vorlage:Anzahl_Freie_Staaten", text)
 
     #Vorlage:Anzahl Bespielte Staaten
-    text = "<onlyinclude><includeonly>" + str(len(vz["staaten"]))
+    text = "<onlyinclude><includeonly>" + str(bespielt)
     text = text + "</includeonly></onlyinclude>\n"
     text = text + "Diese Vorlage gibt die aktuelle Anzahl der bespielten Staaten in "
     text = text + "Simocracy zurück.<br>\nSie wird auf Basis der Staatenliste im "
@@ -689,7 +666,10 @@ def updateArticle():
 
     #Vorlage:Anzahl Spieler
     spielerliste = []
-    for staat in vz["staaten"]:
+    for staat in staaten:
+        if staat["spielerlos"]:
+            continue
+
         spieler = staat["spieler"]
         spieler = spieler.replace("[[", "").replace("]]", "")
         spieler = spieler.replace(",", ";").replace(" und ", ";")

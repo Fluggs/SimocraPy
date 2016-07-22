@@ -14,8 +14,8 @@ from simocracy.statemachine import StateMachine
 username = credentials.username
 password = credentials.password
 
-url = 'https://simocracy.de/'
-vz = "Wikocracy:Portal"
+_url = 'https://simocracy.de/'
+_vz = "Wikocracy:Portal"
 sortprefixes = [
     'Königreich',
     'Republik',
@@ -286,7 +286,7 @@ class Article:
         self._cursor = { "line":-1, "char":0, "modified":False }
         
         qry = "api.php?format=xml&action=query&titles="
-        qry = url + qry + urllib.parse.quote(name)
+        qry = _url + qry + urllib.parse.quote(name)
         if redirect:
             qry = qry + "&redirects"
         response = opener.open(qry)
@@ -306,7 +306,7 @@ class Article:
         print("Öffne " + self.title)
         site = None
         try:
-            qry = url+urllib.parse.quote(self.title) + "?action=raw"
+            qry = _url+urllib.parse.quote(self.title) + "?action=raw"
             site = opener.open(qry)
         except urllib.error.HTTPError:
             raise Exception("404: " + self.title)
@@ -428,7 +428,7 @@ def login():
     #Ersten Request zusammensetzen, der das Login-Token einsammelt
     query_args = { 'lgname':username, 'lgpassword':password }
     qry_args = urllib.parse.urlencode(query_args).encode('utf-8')
-    qry = url + 'api.php?format=xml&action=login'
+    qry = _url + 'api.php?format=xml&action=login'
     c = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(c))
     response = opener.open(qry, qry_args)
@@ -442,7 +442,7 @@ def login():
     #Zweiter Request mit Login-Token
     query_args.update({'lgtoken':lgToken})
     data = urllib.parse.urlencode(query_args).encode('utf-8')
-    response = opener.open(url+'api.php?format=xml&action=login', data)
+    response = opener.open(_url+'api.php?format=xml&action=login', data)
 
     #Login-Status; ggf. abbrechen
     response.readline() #Leerzeile überspringen
@@ -459,7 +459,7 @@ def login():
 Generator für alle Wikiseiten
 """
 def allPages(resume=None):
-    qry = url+'api.php?action=query&list=allpages&aplimit=5000&format=xml'
+    qry = _url+'api.php?action=query&list=allpages&aplimit=5000&format=xml'
     if resume:
         qry = qry + "&apfrom=" + resume
     response = opener.open(qry)
@@ -495,7 +495,8 @@ buendnisse: array aus dicts; keys:
     
 zB Zugriff auf Staatenname: r["staaten"][0]["name"]
 """
-def readVZ(article):
+def readVZ():
+    article = Article(_vz)
 
     if not article:
         raise Exception("übergebene Seite leer")
@@ -710,6 +711,50 @@ def readVZ(article):
             "spielerlos": sorted(spielerlos, key=lambda k: k['uri']),
     }
 
+
+"""
+Liest die Infotabellen aller Staaten aus
+"""
+def readStates(vz):
+    print("Lese Portal ein")
+
+    staaten = []
+    for staat in vz["staaten"]:
+        staat['spielerlos'] = False
+        staaten.append(staat)
+    for staat in vz["spielerlos"]:
+        staat["spielerlos"] = True
+        staaten.append(staat)
+
+    staaten = sorted(staaten, key=lambda k: k["sortname"])
+
+    print("Lese Infoboxen ein")
+    for staat in staaten:
+        article = Article(staat["uri"])
+        article.parseTemplates()
+        infobox = None
+        for t in article.templates:
+            if t.name == "Infobox Staat":
+                infobox = t.values
+                continue
+
+        if infobox is None:
+            print("Keine Infobox: "+staat["uri"])
+            continue
+
+        for key in infobox:
+            infobox[key] = globalizeLinks(infobox[key], staat["uri"])
+        if not infobox == None:
+            staat["infobox"] = infobox
+        #Stellt sicher, dass jeder Staat eine Infobox hat
+        else:
+            s = "Warnung: "+staat["uri"]+" hat keine Infobox Staat"
+            print(s, file=sys.stderr)
+            continue
+
+    return staaten
+    
+
 """
 Nimmt einen Wikilink der Form [[x|y]] oder [[x]] und
 liefert Staatsname, Staats-URI und Sortierkey zurück:
@@ -744,6 +789,10 @@ Extrahiert den Dateinamen der Flagge
 aus der Flaggeneinbindung flagcode.
 """
 def extractFlag(flagcode):
+    #html-Kommentar rauswerfen
+    p = re.compile(r'<!--[^>]*-->')
+    flagcode = p.sub("",flagcode)
+
     #Flaggenvorlage
     if re.match(r'\{\{', flagcode) is not None:
         #flagcode.replace(r"{{", "")
@@ -787,11 +836,11 @@ def extractFlag(flagcode):
         flagcode = values[0]
     #kaputt
     else:
-        raise Exception(value + " keine gültige Flagge")
+        raise Exception(flagcode + " keine gültige Flagge")
     
     #Bild-URL extrahieren
     flagcode = urllib.parse.quote(flagcode.strip().replace(' ', '_'))
-    response = opener.open(url + 'api.php?titles=Datei:'+flagcode+'&format=xml&action=query&prop=imageinfo&iiprop=url')
+    response = opener.open(_url + 'api.php?titles=Datei:'+flagcode+'&format=xml&action=query&prop=imageinfo&iiprop=url')
     response.readline() #Leerzeile ueberspringen
     xmlRoot = ET.fromstring(response.readline())
     
@@ -909,7 +958,7 @@ def editArticle(article, text):
     print("Bearbeite "+article)
 
     #Edit-Token lesen
-    response = opener.open(url + 'api.php?action=query&format=xml&titles=' + urllib.parse.quote(article) + '&meta=tokens')
+    response = opener.open(_url + 'api.php?action=query&format=xml&titles=' + urllib.parse.quote(article) + '&meta=tokens')
     #return response
     response.readline()
     xmlRoot = ET.fromstring(response.readline())
@@ -917,7 +966,7 @@ def editArticle(article, text):
     
     #Seite bearbeiten
     query_args = { 'text':text, 'token':editToken }
-    query_url = url + 'api.php?action=edit&bot&format=xml&title=' + urllib.parse.quote(article)
+    query_url = _url + 'api.php?action=edit&bot&format=xml&title=' + urllib.parse.quote(article)
     response = opener.open(query_url, urllib.parse.urlencode(query_args).encode('utf8'))
 
     #Result auslesen
