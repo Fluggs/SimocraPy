@@ -682,7 +682,7 @@ def updateArticle(staaten):
 
     text = "<onlyinclude><includeonly>" + str(len(spielerliste))
     text = text + "</includeonly></onlyinclude>\n"
-    text = text + "Diese Vorlage gibt die aktuelle Anzahl der Staaten (inkl. Zweitstaaten) "
+    text = text + "Diese Vorlage gibt die aktuelle Anzahl der aktiven Spieler "
     text = text + "in Simocracy zurück.<br>\nSie wird auf Basis der Staatenliste im "
     text = text + "[[Wikocracy:Portal|Portal]] berechnet.<br>\n===Derzeitige Spieler===\n"
     for spieler in spielerliste:
