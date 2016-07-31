@@ -456,7 +456,7 @@ def login():
 
 
 """
-Generator für alle Wikiseiten
+Generator für Namen aller Wikiseiten
 """
 def allPages(resume=None):
     qry = _url+'api.php?action=query&list=allpages&aplimit=5000&format=xml'
@@ -975,3 +975,29 @@ def editArticle(article, text):
     xmlRoot = ET.fromstring(response.readline())
     if xml.find('edit').attrib['result'] != 'Success':
         raise Exception('edit not successful')
+
+
+def buildQuery(args):
+    qry = "?"
+    for arg in args:
+        if qry == "?":
+            qry += arg
+        else:
+            qry += "&"+arg
+    return qry + "&format=xml&action=query"
+
+
+"""
+Schickt das Query bestehend aus *args ans Wiki.
+format=xml und action=query muss nicht angegeben werden.
+Gibt den xml-elementtree der Antwort zurück.
+Beispiel: sendQuery("titles=Flugghingen","redirects")
+"""
+def sendQuery(*args):
+    qry = buildQuery(args)
+    print(qry)
+    response = opener.open(_url+"api.php"+qry)
+    l = response.readline()
+    l = response.readline()
+    return ET.fromstring(l)
+    

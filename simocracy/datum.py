@@ -158,11 +158,11 @@ def sytorl(datum):
         raise SyEpocheException()
     
     # Jahr und Quartal berechnen
-    quartalNr = ( jahr - 1 ) % 4 # Zaehlung beginnt bei 0
-    rlJahr = ( jahr - 2017 ) / 4 + 2008
+    quartalNr = ( datum["jahr"] - 1 ) % 4 # Zaehlung beginnt bei 0
+    rlJahr = ( datum["jahr"] - 2017 ) / 4 + 2008
     
     # Minuten zusammenaddieren
-    minuten = (tag - 1) * 24 * 60 + datum["stunde"] * 60 + datum["minute"]
+    minuten = (datum["tag"] - 1) * 24 * 60 + datum["stunde"] * 60 + datum["minute"]
     for i in range(1, datum["monat"]):
         minuten += monatLen(i, datum["jahr"]) * 24 * 60
     
