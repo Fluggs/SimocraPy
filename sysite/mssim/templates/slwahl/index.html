@@ -1,0 +1,44 @@
+<?xml version="1.0" ?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Simocracy SL-Wahl-o-mat</title>
+<link rel="stylesheet" type="text/css" href="/static/mssim/style.css" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+</head>
+<body>
+    <div id="leftbar">
+        <div id="menu">
+            <b>Navigation</b>
+            <ul>
+                <li><a href="http://simocracy.de/Simocracy:Verzeichnis" title="VZ">Verzeichnis</a></li>
+                <li><a href="http://simocracy.de/-pw/index.php" title="Postwatcher">Postwatcher</a></li>
+                <li><a href="{% url "mssim" %}" title="MS-Sim">MS-Simulator</a></li>
+                <li><a href="{% url "wahlsim" %}" title="Wahlsimulator">Wahlsimulator</a></li>
+                <li><a href="{% url "datum" %}" title="Datumsrechner">Datumsrechner</a></li>
+            </ul>
+        </div>
+    </div>
+    <div id="page">
+        <p><strong>Willkommen beim Wahl-o-mat für die SL-Wahl.</strong><br />
+Dies ist der Zufallsgenerator für die Wahl der neuen Simocracy-Spielleiter - eine kleine Hilfe zur Entscheidungsfindung für Unentschlossene.
+        </p>
+
+        <hr />
+
+<div class="statsbox">
+    
+    <!-- Würfeln -->
+    <form action="" method="post">
+    {% csrf_token %}
+    <input type="hidden" name="calc" value="random">
+    <p><input type="submit" value="Würfeln" align="center"></p>
+    </form>
+    
+    {% if calculation %}
+    <p>Wähle doch {{ ergebnis }}!</p>
+    {% endif %}
+    
+</div>  </div>
+</body>
+</html>

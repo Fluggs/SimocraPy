@@ -1,0 +1,92 @@
+<?xml version="1.0" ?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Simocracy Datumsrechner</title>
+<link rel="stylesheet" type="text/css" href="/static/mssim/style.css" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+</head>
+<body>
+    <div id="leftbar">
+        <div id="menu">
+            <b>Navigation</b>
+            <ul>
+                <li><a href="http://simocracy.de/Simocracy:Verzeichnis" title="VZ">Verzeichnis</a></li>
+                <li><a href="http://simocracy.de/-pw/index.php" title="Postwatcher">Postwatcher</a></li>
+                <li><a href="{% url "mssim" %}" title="MS-Sim">MS-Simulator</a></li>
+                <li><a href="{% url "wahlsim" %}" title="Wahlsimulator">Wahlsimulator</a></li>
+                <li><a href="{% url "slwahl" %}" title="Wahl-o-mat SL-Wahl">Wahl-o-mat SL-Wahl</a></li>
+            </ul>
+        </div>
+    </div>
+    <div id="page">
+        <p><strong>Willkommen beim Datumsrechner.</strong><br />
+Dies ist der Simocracy-Datumsrechner. Um ihn zu nutzen, gib unten an, welches Datum du berechnen möchtest.
+        </p>
+
+        <hr />
+        
+{% if error %}
+<h2 class="statsboxhead" style="display:block;">FEHLER!</h2>
+Das angegebene Datum befindet sich leider nicht in der Simocracy-Epoche, die Berechnung kann nicht durchgeführt werden.<br><br>
+{% endif %}
+
+<h2 class="statsboxhead" style="display:block;">TT-MM-JJJJ : HH-MM</h2>
+
+<div class="statsbox">
+
+
+    <!-- Irgendein Datum -->
+    <form action="" method="post">
+    {% csrf_token %}
+    <input type="hidden" name="calc" value="">
+    
+    <p class="statsboxhead"><label class="statsboxhead"><input type="radio" name="modus" value="sy"{% ifequal modus "sy" %} checked{% endifequal %}><i>RL -> SY</i></label></p>
+    <p class="statsboxhead"><label><input type="radio" name="modus" value="rl"{% ifequal modus "rl" %} checked{% endifequal %}><i>SY -> RL</i></label></p>
+    
+    {{ inputdatum.tag }}
+
+    <select name="tag">
+        {% for tag in tage %}
+        <option{% ifequal input.tag tag %} selected="selected"{% endifequal %}>{{ tag }}</option>
+        {% endfor %}
+    </select>
+    <select name="monat">
+        {% for monat in monate %}
+        <option{% ifequal input.monat monat %} selected="selected"{% endifequal %}>{{ monat }}</option>
+        {% endfor %}
+    </select>
+    <select name="jahr">
+        {% for jahr in jahre %}
+        <option{% ifequal input.jahr jahr %} selected="selected"{% endifequal %}>{{ jahr }}</option>
+        {% endfor %}
+    </select>
+    <select name="stunde">
+        {% for stunde in stunden %}
+        <option{% ifequal input.stunde stunde %} selected="selected"{% endifequal %}>{{ stunde }}</option>
+        {% endfor %}
+    </select>
+    <select name="minute">
+        {% for minute in minuten %}
+        <option{% ifequal input.minute minute %} selected="selected"{% endifequal %}>{{ minute }}</option>
+        {% endfor %}
+    </select>
+            
+    <p><input type="submit" value="Absenden" align="center"></p>
+    </form>
+    
+    <!-- Heutiges Datum -->
+    <form action="" method="post">
+    {% csrf_token %}
+    <input type="hidden" name="calc" value="heute">
+    <p><input type="submit" value="Heutiges Datum" align="center"></p>
+    </form>
+    
+    {% if calculation %}
+    <p>Eingegebenes Datum: {{ input.tag }}.{{ input.monat }}.{{ input.jahr }} {{ input.stunde }}:{{ input.minute }} {% ifequal modus "rl" %}SY{% else %}RL{% endifequal %}</p>
+    <p>Berechnetes Datum: {{ tag }}.{{ monat }}.{{ jahr }} {{ stunde }}:{{ minute }} {% ifequal modus "rl" %}RL{% else %}SY{% endifequal %}</p>
+    {% endif %}
+    
+</div>  </div>
+</body>
+</html>

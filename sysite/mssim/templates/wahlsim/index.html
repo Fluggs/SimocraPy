@@ -1,0 +1,90 @@
+<?xml version="1.0" ?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Simocracy Wahlgenerator</title>
+<link rel="stylesheet" type="text/css" href="/static/mssim/style.css" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+</head>
+<body>
+    <div id="leftbar">
+        <div id="menu">
+            <b>Navigation</b>
+            <ul>
+                <li><a href="http://simocracy.de/Simocracy:Verzeichnis" title="VZ">Verzeichnis</a></li>
+                <li><a href="http://simocracy.de/-pw/index.php" title="Postwatcher">Postwatcher</a></li>
+                <li><a href="{% url "datum" %}" title="Datumsrechner">Datumsrechner</a></li>
+                <li><a href="{% url "mssim" %}" title="MS-Simulator">MS-Simulator</a></li>
+                <li><a href="{% url "slwahl" %}" title="Wahl-o-mat SL-Wahl">Wahl-o-mat SL-Wahl</a></li>
+            </ul>
+        </div>
+    </div>
+    <div id="page">
+        <p><strong>Willkommen beim Wahlergebnisgenerator.</strong><br />
+Dies ist der Simocracy-Wahlergebnisgenerator. Er gibt dir für deine Parteien zufällige Wahlergebnisse aus. Falls dir das Ergebnis nicht gefällt, versuche es einfach noch einmal. Du kannst zudem das maximale Ergebnis spezifizieren, dass eine Partei erlangen können soll.
+        </p>
+
+        <hr />
+      
+<!-- Fehlerfall -->
+{% if error %}
+<h2 class="statsboxhead" style="display:block;">FEHLER!</h2>
+{{ input.anzahl }} Parteien mit maximal {{ input.max }} können zusammen keine 100% ergeben.<br><br>
+{% endif %}
+
+<!-- Ergebnis -->
+{% if calculation %}
+<h2 class="statsboxhead" style="display:block;">Wahlergebnis</h2>
+    <table class="resultbox">
+    
+        <tr>
+            <th>Partei</th>
+            <th>Ergebnis</th>
+        </tr>
+        {% for partei in ergebnis %}
+        <tr class="trgray">
+            <td>{{ partei.nummer }}</td>
+            <td>{{ partei.ergebnis }}%</td>
+        </tr>
+        {% endfor %}
+
+
+
+    </table><br><br>
+{% endif %}
+
+<h2 class="statsboxhead" style="display:block;">Eingabe</h2>
+
+<div class="statsbox">
+
+
+    <!-- Input -->
+    <form action="" method="post">
+    {% csrf_token %}
+    <input type="hidden" name="calc" value="">
+
+    <p>Anzahl der Parteien:
+    <select name="anzahl">
+        {% for eintrag in parteien %}
+        <option{% ifequal input.anzahl eintrag %} selected="selected"{% endifequal %}>{{ eintrag }}</option>
+        {% endfor %}
+    </select></p>
+    <p>Maximalergebnis:
+    <select name="max">
+        {% for eintrag in prozentmax %}
+        <option{% if input.max == eintrag or not calculation and eintrag == "50%" %} selected="selected"{% endif %}>{{ eintrag }}</option>
+        {% endfor %}
+    </select></p>
+    <p>Prozenthürde:
+    <select name="min">
+        {% for eintrag in prozentmin %}
+        <option{% ifequal input.min eintrag %} selected="selected"{% endifequal %}>{{ eintrag }}</option>
+        {% endfor %}
+    </select></p>
+            
+    <p><input type="submit" value="Absenden" align="center"></p>
+    </form>
+    
+</div>  </div>
+</body>
+</html>

@@ -1,0 +1,112 @@
+{% load staticfiles %}
+<?xml version="1.0" ?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Simocracy MS-Simulator</title>
+<link rel="stylesheet" type="text/css" href="{% static 'mssim/style.css' %}" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+</head>
+<body>
+    <div id="leftbar">
+        <div id="menu">
+            <b>Navigation</b>
+            <ul>
+                <li><a href="http://simocracy.de/Simocracy:Verzeichnis" title="VZ">Verzeichnis</a></li>
+                <li><a href="http://simocracy.de/-pw/index.php" title="Postwatcher">Postwatcher</a></li>
+                <li><a href="{% url "datum" %}" title="Datumsrechner">Datumsrechner</a></li>
+                <li><a href="{% url "wahlsim" %}" title="Wahlsimulator">Wahlsimulator</a></li>
+                <li><a href="{% url "slwahl" %}" title="Wahl-o-mat">Wahl-o-mat SL-Wahl</a></li>
+            </ul>
+        </div>
+    </div>
+    <div id="page">
+        <p><strong>Willkommen beim MS-Simulator.</strong><br />
+Dies ist der Simocracy-Kriegssimulator. Um ihn zu nutzen, gib unten an, welche Staaten auf welcher Seite stehen sollen.<br>
+Staaten, für die Partei A ausgegraut ist, sind <a href="http://simocracy.de/Spielregeln/Zweitstaaten" title="Zweitstaaten">Zweitstaaten</a>. Sie können nur ihr eigenes Territorium verteidigen.
+        </p>
+
+        {% if lastupdate %}<p>Letztes Update der Staatendatenbank: {{ lastupdate }}</p>{% endif %}
+
+        <hr />
+
+{% if calculation %}
+
+{% if unentschieden %}
+<h2 class="statsboxhead" align="center">Unentschieden!</h2>
+{% else %}
+<h2 class="statsboxhead" align="center">{{ winner }} gewinnt!</h2>
+{% endif %}
+
+<div class="resultbox" align="center">
+
+    <table class="statsboxtable" align="center">
+        <tr>
+            <th align="center" style="min-width: 50%; background-color: #8380b7"><span>Partei A</span></th>
+            <th align="center" style="min-width: 50%; background-color: #c68080"><span>Partei B</span></th>
+        </tr>
+        <tr>
+            <th><p align="center">{{ ms_A }} MS</p></th>
+            <th><p align="center">{{ ms_B }} MS</p></th>
+        <tr>
+            <th><p align="center">{{ as_A }} AS</p></th>
+            <th><p align="center">{{ as_B }} AS</p></th>
+        </tr>
+    </table>
+
+</div>
+
+{% endif %}
+
+<h2 class="statsboxhead" style="display:block;">Staaten</h2>
+
+<div class="statsbox">
+
+
+    <form action="" method="post">
+    {% csrf_token %}
+    <input type="submit" value="Absenden" align="right"><br>
+    <input type="hidden" name="check" value="{{ checksum }}">
+    <table class="statsboxtable">
+    
+        <tr>
+            <th style="min-width: 20%;">Spieler</th>
+            <th style="max-width: 40%;">Nation</th>
+            <th style="max-width: 40%;">MS</th>
+            <th style="max-width: 40%;">AS</th>
+            <th style="max-width: 10%;">Partei A</th>
+            <th style="max-width: 10%;">Partei B</th>
+            <th style="max-width: 10%;">Neutral</th>
+        </tr>
+        {% for staat in staatenliste %}
+        <tr class="trgray">
+            <td>{{ staat.spieler }}</td>
+            <td>
+            <img src="{{ staat.buendnis.flagge }}" title="Bündnis" alt="Bündnis" width="28" height="20" />
+            <img src="{{ staat.flagge }}" title="{{ staat.name }}" alt="{{ staat.name }}" width="28" height="20" />
+            {{ staat.name }}</td>
+            <td>{{ staat.ms }}</td>
+            <td>{{ staat.bomben }}</td>
+            {% if staat.zweitstaat %}
+            <td style="background-color: #BABABA;">
+            {% else %}
+            <td style="background-color: #8380b7;">
+                <input align="center" type="radio" name="{{ staat.nummer }}" value="a"{% ifequal staat.partei "a" %} checked{% endifequal %}></td>
+            {% endif %}
+            <td style="background-color: #c68080;">
+                <input align="center" type="radio" name="{{ staat.nummer }}" value="b"{% ifequal staat.partei "b" %} checked{% endifequal %}></td>
+            <td style="background-color: #80c780;">
+                <input align="center" type="radio" name="{{ staat.nummer }}" value="neutral"{% ifequal staat.partei "neutral" %} checked{% endifequal %}></td>
+        </tr>
+        {% endfor %}
+
+
+
+            </table>
+            
+            <br><input type="submit" value="Absenden" align="center">
+            </form>
+    
+</div>  </div>
+</body>
+</html>
