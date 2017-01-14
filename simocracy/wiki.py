@@ -3,16 +3,25 @@
 import urllib.request, urllib.parse, urllib.error
 import http.cookiejar
 import xml.etree.ElementTree as ET
+import sys
 import re
 import simocracy.credentials as credentials
 
 from enum import Enum
 from simocracy.statemachine import StateMachine
 
+username = None
+password = None
+try:
+    import simocracy.credentials as credentials
+except ImportError:
+    username = credentials.username
+    password = credentials.password
+
 ##############
 ### Config ###
-username = credentials.username
-password = credentials.password
+#username = "USERNAME"
+#password = "PASSWORD"
 
 _url = 'https://simocracy.de/'
 _vz = "Wikocracy:Portal"
@@ -43,6 +52,9 @@ opener = None
 
 #Flow Control für falls kein Template im Artikel gefunden wird
 class NoTemplate(Exception):
+    pass
+
+class ConfigError(Exception):
     pass
 
 """
@@ -302,6 +314,12 @@ class Article:
         if not article:
             raise Exception("Spezialseite")
 
+        error = article.find("error")
+        if error:
+            msg = error.attrib["code"] + ": "
+            msg += error.attrib["info"]
+            raise Exception(msg)
+
         self.title = article.find("page").attrib["title"]
         print("Öffne " + self.title)
         site = None
@@ -423,6 +441,10 @@ class Article:
 Loggt den User ins Wiki ein.
 """
 def login():
+    #Config Check
+    if username is None or password is None:
+        raise ConfigError("username or password not given")
+
     global opener
 
     #Ersten Request zusammensetzen, der das Login-Token einsammelt
