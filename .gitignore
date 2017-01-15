@@ -1,2 +1,4 @@
 simocracy/credentials.py
-simocracy/__pycache__
+__pycache__
+*.pyc
+*.sqlite3
