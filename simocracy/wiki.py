@@ -14,9 +14,10 @@ username = None
 password = None
 try:
     import simocracy.credentials as credentials
-except ImportError:
     username = credentials.username
     password = credentials.password
+except ImportError:
+    pass
 
 ##############
 ### Config ###
