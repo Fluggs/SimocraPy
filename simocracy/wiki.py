@@ -31,6 +31,7 @@ sortprefixes = [
     'Republik',
     'Bundesrepublik',
     'Föderation',
+    'Freistaat',
     'Reich',
     'Heiliger',
     'Heilige',
