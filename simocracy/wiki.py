@@ -297,6 +297,7 @@ class Article:
         self.title = None
         self.templates = None
         self.text = []
+        self.textStr = ""
         self._cursor = { "line":-1, "char":0, "modified":False }
         
         qry = "api.php?format=xml&action=query&titles="
@@ -333,6 +334,7 @@ class Article:
             
         for line in site.readlines():
             self.text.append(line.decode('utf-8'))
+            self.textStr += line.decode('utf-8')
             
     """
     Cursor-Definition
@@ -978,7 +980,7 @@ def removeLinks(s):
 """
 Schreibt den Text text in den Artikel article.
 """
-def editArticle(article, text):
+def editArticle(article, text, section=-1):
     print("Bearbeite "+article)
 
     #Edit-Token lesen
@@ -990,6 +992,8 @@ def editArticle(article, text):
     
     #Seite bearbeiten
     query_args = { 'text':text, 'token':editToken }
+    if section > -1:
+        query_args['section'] = section
     query_url = _url + 'api.php?action=edit&bot&format=xml&title=' + urllib.parse.quote(article)
     response = opener.open(query_url, urllib.parse.urlencode(query_args).encode('utf8'))
 
@@ -997,7 +1001,7 @@ def editArticle(article, text):
     return response
     response.readline()
     xmlRoot = ET.fromstring(response.readline())
-    if xml.find('edit').attrib['result'] != 'Success':
+    if xmlRoot.find('edit').attrib['result'] != 'Success':
         raise Exception('edit not successful')
 
 
