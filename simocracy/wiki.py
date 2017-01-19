@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 import sys
 import re
 import simocracy.credentials as credentials
+import os
 
 from enum import Enum
 from simocracy.statemachine import StateMachine
@@ -297,7 +298,7 @@ class Article:
         self.title = None
         self.templates = None
         self.text = []
-        self.textStr = ""
+        self._asString = None
         self._cursor = { "line":-1, "char":0, "modified":False }
         
         qry = "api.php?format=xml&action=query&titles="
@@ -333,9 +334,30 @@ class Article:
             raise Exception("404: " + self.title)
             
         for line in site.readlines():
-            self.text.append(line.decode('utf-8'))
-            self.textStr += line.decode('utf-8')
+            self.text.append(line.decode('utf-8').strip(os.linesep).strip("\n"))
             
+    """
+    Artikeltext als String
+    """
+    @property
+    def asString(self):
+        if self._asString is not None:
+            return self._asString
+
+        start = {
+            "line" : 0,
+            "char" : 0,
+        }
+        lastline = len(self.text) - 1
+        end = {
+            "line" : lastline,
+            "char" : len(self.text[lastline]),
+        }
+
+        self._asString = self.extract(start, end)
+        return self._asString
+    
+
     """
     Cursor-Definition
     { "line":line, "char":char, "modified":True|False }
@@ -372,7 +394,7 @@ class Article:
     Gibt den Teil zwischen den Cursorn start und end zurück;
     alle Zeilen aneinandergehängt und mit \n getrennt
     """
-    def extract(self, start, end):
+    def extract(self, start, end, linesep=os.linesep):
         #Nur eine Zeile
         if start["line"] == end["line"]:
             return self.text[start["line"]][start["char"]:end["char"]]
@@ -381,13 +403,13 @@ class Article:
         for i in range(start["line"], end["line"] + 1):
             #Anfangszeile
             if i == start["line"]:
-                r += self.text[i][start["char"]:] + "\n"
+                r += self.text[i][start["char"]:] + linesep
             #Endzeile
             elif i == end["line"]:
                 return r + self.text[i][:end["char"]]
                 
             else:
-                r += self.text[i] + "\n"
+                r += self.text[i] + linesep
                 
         #Sollte eigentlich nicht auftreten, da return in Endzeile
         raise RuntimeError()
