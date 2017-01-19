@@ -2,3 +2,4 @@ simocracy/credentials.py
 __pycache__
 *.pyc
 *.sqlite3
+lastupdate
