@@ -5,7 +5,6 @@ import http.cookiejar
 import xml.etree.ElementTree as ET
 import sys
 import re
-import simocracy.credentials as credentials
 import os
 
 from enum import Enum
@@ -462,12 +461,15 @@ class Article:
             except NoTemplate:
                 break
                 
-
 """
 Loggt den User ins Wiki ein.
 """
-def login():
+def login(user = None, passwd = None):
     #Config Check
+    if not user is None and not passwd is None:
+        username = user
+        password = passwd
+
     if username is None or password is None:
         raise ConfigError("username or password not given")
 
