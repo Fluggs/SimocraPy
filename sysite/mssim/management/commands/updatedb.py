@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 import re
 import time
 import simocracy.wiki as wiki
-import simocracy.IAS as IAS
+import simocracy.ias as ias
 
 from django.core.management.base import BaseCommand, CommandError
 from mssim.models import Staat, Buendnis
@@ -97,5 +97,5 @@ class Command(BaseCommand):
 
 
         #IAS
-        IAS.updateArticle(staaten)
+        ias.updateArticle(staaten)
         print("IAS aktualisiert")
