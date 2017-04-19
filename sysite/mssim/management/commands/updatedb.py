@@ -19,7 +19,7 @@ class Command(BaseCommand):
     neutralflagge = ""
     platzhalter = "http://simocracy.de/images/6/65/Platzhalter.png"
 
-    def handle(self):
+    def handle(self, *args, **options):
         """
         Fuehrt das Kommando aus.
         """
@@ -95,5 +95,5 @@ class Command(BaseCommand):
         print("mssim-db aktualisiert")
 
         # IAS
-        ias.updateArticle(staaten)
+        ias.update_article(staaten)
         print("IAS aktualisiert")

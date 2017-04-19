@@ -647,19 +647,19 @@ def update_article(staaten):
 
     # Vorlage:Anzahl Freie Staaten
     text = "<onlyinclude><includeonly>" + str(spielerlos)
-    text += + "</includeonly></onlyinclude>\n"
-    text += + "Diese Vorlage gibt die aktuelle Anzahl der freien Staaten in "
-    text += + "Simocracy zurück. Gezählt werden alle Staaten des Planeten.<br>\nSie "
-    text += + "wird auf Basis der Staatenliste im [[Wikocracy:Portal|Portal]] berechnet."
-    text += + "\n\n[[Kategorie:Fluggbot]]"
+    text += "</includeonly></onlyinclude>\n"
+    text += "Diese Vorlage gibt die aktuelle Anzahl der freien Staaten in "
+    text += "Simocracy zurück. Gezählt werden alle Staaten des Planeten.<br>\nSie "
+    text += "wird auf Basis der Staatenliste im [[Wikocracy:Portal|Portal]] berechnet."
+    text += "\n\n[[Kategorie:Fluggbot]]"
     wiki.editArticle("Vorlage:Anzahl_Freie_Staaten", text)
 
     # Vorlage:Anzahl Bespielte Staaten
     text = "<onlyinclude><includeonly>" + str(bespielt)
-    text += + "</includeonly></onlyinclude>\n"
-    text += + "Diese Vorlage gibt die aktuelle Anzahl der bespielten Staaten in "
-    text += + "Simocracy zurück.<br>\nSie wird auf Basis der Staatenliste im "
-    text += + "[[Wikocracy:Portal|Portal]] berechnet.\n\n[[Kategorie:Fluggbot]]"
+    text += "</includeonly></onlyinclude>\n"
+    text += "Diese Vorlage gibt die aktuelle Anzahl der bespielten Staaten in "
+    text += "Simocracy zurück.<br>\nSie wird auf Basis der Staatenliste im "
+    text += "[[Wikocracy:Portal|Portal]] berechnet.\n\n[[Kategorie:Fluggbot]]"
     wiki.editArticle("Vorlage:Anzahl_Bespielte_Staaten", text)
 
     # Vorlage:Anzahl Spieler
@@ -679,10 +679,10 @@ def update_article(staaten):
         spielerliste = sorted(spielerliste, key=lambda s: s.lower())
 
     text = "<onlyinclude><includeonly>" + str(len(spielerliste))
-    text += + "</includeonly></onlyinclude>\n"
-    text += + "Diese Vorlage gibt die aktuelle Anzahl der aktiven Spieler "
-    text += + "in Simocracy zurück.<br>\nSie wird auf Basis der Staatenliste im "
-    text += + "[[Wikocracy:Portal|Portal]] berechnet.<br>\n===Derzeitige Spieler===\n"
+    text += "</includeonly></onlyinclude>\n"
+    text += "Diese Vorlage gibt die aktuelle Anzahl der aktiven Spieler "
+    text += "in Simocracy zurück.<br>\nSie wird auf Basis der Staatenliste im "
+    text += "[[Wikocracy:Portal|Portal]] berechnet.<br>\n===Derzeitige Spieler===\n"
     for spieler in spielerliste:
         text += spieler + "<br>\n"
     text += "\n[[Kategorie:Fluggbot]]"
