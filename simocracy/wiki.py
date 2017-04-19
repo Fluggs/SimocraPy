@@ -466,6 +466,9 @@ Loggt den User ins Wiki ein.
 """
 def login(user = None, passwd = None):
     #Config Check
+    global username
+    global password
+
     if not user is None and not passwd is None:
         username = user
         password = passwd
