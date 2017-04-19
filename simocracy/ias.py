@@ -110,24 +110,6 @@ def extract_waehrung(s):
     return re.split(r'([^({\d=]*)', s)[1].strip()
 
 
-def rem_brackets(s):
-    """
-    Entfernt Klammerinhalte sowie kursives Zeug aus s.
-    """
-    patterns = [
-        re.compile(r'\(.*?\)'),
-        re.compile(r"''[^']*?''"),
-    ]
-    for p in patterns:
-        while True:
-            e = re.subn(p, "", s)
-            s = e[0].strip()
-            if e[1] == 0:
-                break
-
-    return s
-
-
 def normalize_waehrung(s):
     """
     Normalisiert die Währungsangabe
@@ -143,7 +125,7 @@ def normalize_waehrung(s):
 
     # Abhacken vor bestimmten Zeichen
     for part in s:
-        charlist = [r'\(', r'<', r'\{', r'/']
+        charlist = [r'\(', r'<', r'\{', r'/', r',', r';']
         for c in charlist:
             m = re.search(r'([^'+c+r']*)', s[part])
             if m:
@@ -163,6 +145,24 @@ def normalize_waehrung(s):
     m = re.match(p, s)
     if m:
         s = m.group(1)
+
+    return s
+
+
+def rem_brackets(s):
+    """
+    Entfernt Klammerinhalte sowie kursives Zeug aus s.
+    """
+    patterns = [
+        re.compile(r'\(.*?\)'),
+        re.compile(r"''[^']*?''"),
+    ]
+    for p in patterns:
+        while True:
+            e = re.subn(p, "", s)
+            s = e[0].strip()
+            if e[1] == 0:
+                break
 
     return s
 
@@ -413,7 +413,7 @@ def sum_up_waehrung(w, f):
 
 def update_article(staaten):
 
-    # Infoboxen normalisieren
+    # Infoboxen auf Vollständigkeit prüfen
     for staat in staaten:
         if staat["infobox"] is not None:
             staat["infobox"] = normalize_infobox(staat["infobox"], staat["uri"])
@@ -503,6 +503,7 @@ def update_article(staaten):
             if waehrung is None or re.match(r'^\s*$', waehrung) is not None:
                 waehrung = unknown
             else:
+                waehrung = normalize_waehrung(waehrung)
                 d = {
                     "name": extract_waehrung(waehrung),
                     "ew": ew_int,
@@ -510,7 +511,6 @@ def update_article(staaten):
                 gesamt["waehrung"].append(d)
         else:
             waehrung = unknown
-        waehrung = normalize_waehrung(waehrung)
 
         # Amtssprache
         sprache = normalize_sprache(staat["infobox"]["Amtssprache"])
