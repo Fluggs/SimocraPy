@@ -78,12 +78,12 @@ class Template:
         
         #Setup State Machine
         self.fsm = StateMachine()
-        self.fsm.addState("start", self.start_state)
-        self.fsm.setStart("start")
-        self.fsm.addState("name", self.name_state)
-        self.fsm.addState("value", self.value_state)
-        self.fsm.addState("end", None, end=True)
-        self.fsm.addState("link", self.link_state)
+        self.fsm.add_state("start", self.start_state)
+        self.fsm.set_start("start")
+        self.fsm.add_state("name", self.name_state)
+        self.fsm.add_state("value", self.value_state)
+        self.fsm.add_state("end", None, end=True)
+        self.fsm.add_state("link", self.link_state)
         
         self.p_start = re.compile(r"\{\{")
         self.p_end = re.compile(r"\}\}")

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.4
 
-class StateMachine():
+
+class StateMachine:
     def __init__(self, endless=False, verbose=False):
         self.msg = "statemachine " + str(id(self)) + ": "
         self.verbose = verbose
@@ -10,18 +11,18 @@ class StateMachine():
         self.state = None
         self.endless = endless
 
-    def addState(self, name, handler, end=False):
+    def add_state(self, name, handler, end=False):
         if self.verbose:
             msg = self.msg + "state added: "
             hname = "None"
-            if  not handler is None:
+            if handler is not None:
                 hname = handler.__name__
             print(msg + name + "; handler: " + hname)
         self.states[name] = handler
         if end:
             self.ends.append(name)
         
-    def setStart(self, name):
+    def set_start(self, name):
         if self.verbose:
             print(self.msg + "start state set: " + name)
         if name in self.states:
@@ -29,13 +30,13 @@ class StateMachine():
         else:
             raise Exception("unknown state: " + name)
         
-    def run(self, verbose = None):
+    def run(self, verbose=None):
         if verbose is not None:
             self.verbose = verbose
         if self.verbose:
             print(self.msg + "running statemachine")
             
-        if self.start == None:
+        if self.start is None:
             raise Exception("no start state given")
         if not self.endless and self.ends == []:
             raise Exception("no end state given")

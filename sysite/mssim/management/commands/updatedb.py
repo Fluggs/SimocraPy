@@ -11,19 +11,18 @@ import simocracy.ias as ias
 from django.core.management.base import BaseCommand, CommandError
 from mssim.models import Staat, Buendnis
 
+
 class Command(BaseCommand):
     args = 'None'
     help = 'Aktualisiert die Staatendatenbank und das IAS'
     
     neutralflagge = ""
-    #neutralflagge = "http://simocracy.de/images/1/1c/Xxwhiteflag.png"
     platzhalter = "http://simocracy.de/images/6/65/Platzhalter.png"
-            
-        
-    """
-    Fuehrt das Kommando aus.
-    """
-    def handle(self, *args, **options):
+
+    def handle(self):
+        """
+        Fuehrt das Kommando aus.
+        """
         wiki.login()
         vz = wiki.readVZ()
 
@@ -34,11 +33,11 @@ class Command(BaseCommand):
         DB-Modelle aufbauen
         """
         
-        #Alte Daten löschen
+        # Alte Daten löschen
         Staat.objects.all().delete()
         Buendnis.objects.all().delete()
         
-        #"Kein Bündnis"-Bündnis
+        # "Kein Bündnis"-Bündnis
         neutralbnd = Buendnis()
         neutralbnd.name = "Kein Bündnis"
         neutralbnd.flagge = self.platzhalter
@@ -54,11 +53,11 @@ class Command(BaseCommand):
             i += 1
             
         # Staaten sortieren
-        #staaten = sorted(staaten, key=lambda k: k['name']) 
+        # staaten = sorted(staaten, key=lambda k: k['name'])
 
         i = 1
         for state in staaten:
-            #nur bespielte Staaten eintragen
+            # nur bespielte Staaten eintragen
             if state["spielerlos"]:
                 continue
 
@@ -73,7 +72,7 @@ class Command(BaseCommand):
             staat.zweitstaat = state["zweitstaat"]
             i += 1
             
-            #Bündnis suchen
+            # Bündnis suchen
             found = False
             for bnd in Buendnis.objects.all():
                 if bnd.flagge == state["buendnis"]:
@@ -82,8 +81,8 @@ class Command(BaseCommand):
             
             if not found:
                 if state["buendnis"] != self.neutralflagge:
-                    self.stdout.write("Konnte "+state["buendnis"]+" keinem bestehenden Bündnis zuordnen. "
-                                    +state["name"]+" wird daher als neutral eingetragen.")
+                    self.stdout.write("Konnte " + state["buendnis"] + " keinem bestehenden Bündnis zuordnen. "
+                                      + state["name"] + " wird daher als neutral eingetragen.")
                 staat.buendnis = neutralbnd
             
             staat.save()
@@ -95,7 +94,6 @@ class Command(BaseCommand):
 
         print("mssim-db aktualisiert")
 
-
-        #IAS
+        # IAS
         ias.updateArticle(staaten)
         print("IAS aktualisiert")

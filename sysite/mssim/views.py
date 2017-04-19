@@ -11,10 +11,11 @@ import simocracy.datum as sydatum
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
+
 def slwahl(request):
     bewerber = ['Schleicher', 'Costa', 'Furanty']
 
-    vardict = { "calculation" : False }
+    vardict = {"calculation": False}
     if "calc" in request.POST:
         vardict["ergebnis"] = random.choice(bewerber)
         vardict["calculation"] = True
@@ -23,18 +24,20 @@ def slwahl(request):
     context = RequestContext(request, vardict)
     return HttpResponse(template.render(context))
 
-def toInfinity():
+
+def to_infinity():
     i = 0
     while True:
         yield i
         i += 1
 
+
 def wahlsim(request):
     
-    vardict = { "error" : False }
+    vardict = {"error": False,
+               "parteien": []}
     
     # Select-Listen bestuecken
-    vardict["parteien"] = []
     for i in range(2, 10):
         vardict["parteien"].append(str(i))
         
@@ -45,8 +48,7 @@ def wahlsim(request):
     vardict["prozentmin"] = []
     for i in range(0, 10):
         vardict["prozentmin"].append(str(i) + "%")
-        
-    
+
     # Maximalergebnis nicht anwendbar
     if ("calc" in request.POST
             and int(request.POST["anzahl"]) * int(request.POST["max"].replace("%", "")) < 100):
@@ -68,12 +70,11 @@ def wahlsim(request):
         vardict["input"]["min"] = request.POST["min"]
         
         anzahl = int(request.POST["anzahl"])
-        sup = int(request.POST["max"].replace("%", "")) # Supremum bzw. Maximum
-        inf = int(request.POST["min"].replace("%", "")) # Infimum bzw. Minimum
+        sup = int(request.POST["max"].replace("%", ""))  # Supremum bzw. Maximum
+        inf = int(request.POST["min"].replace("%", ""))  # Infimum bzw. Minimum
         if inf < 0.1:
             inf = 0.3
-        
-            
+
         ergebnis = []
         
         # Zufallszahlen
@@ -84,24 +85,24 @@ def wahlsim(request):
         aus (im Vgl. zu Array aus Zufallszahlen und nach
         Verhaeltnis die Stimmen verteilen).
         """
+        maximum = None
         for i in range(0, anzahl - 1):
             maximum = float(min(sup, 100.0 - sum(ergebnis)))
-            rndnumber = random.uniform(inf, maximum)
             ergebnis.append(random.uniform(inf, maximum))
             
             # sum verkleinern, falls zu gross fuer weiteres Ergebnis
-            for i in toInfinity():
+            for k in to_infinity():
                 if sum(ergebnis) < 100.0 - inf:
                     break
                 
-                j = i % len(ergebnis)
+                j = k % len(ergebnis)
                 ergebnis[j] = random.uniform(inf, ergebnis[j])
                 if ergebnis[j] == 0.0:
-                    ergebnis[j] =.1
+                    ergebnis[j] = .1
         del maximum
             
         # Letztes Ergebnis unter max bzw. inf bringen
-        for i in toInfinity():
+        for i in to_infinity():
             if 100.0 - sum(ergebnis) <= float(sup):
                 break
             
@@ -112,21 +113,20 @@ def wahlsim(request):
             ergebnis[i] = round(ergebnis[i], 1)
             
         ergebnis.append(100.0 - sum(ergebnis))
-        ergebnis[0] = ergebnis[0] - (sum(ergebnis) - 100.0)
+        ergebnis[0] -= (sum(ergebnis) - 100.0)
         # irgendwo wird die Sort. umgedreht, keinen Schimmer wo
-        ergebnis.sort(reverse = True)
+        ergebnis.sort(reverse=True)
         
         # Wahlergebnis in vardict stecken
         vardict["ergebnis"] = []
         for i in range(0, len(ergebnis)):
-            dict = { "nummer" : i + 1,
-                    "ergebnis" : ergebnis[i] }
+            dict = {"nummer": i + 1,
+                    "ergebnis": ergebnis[i]}
             vardict["ergebnis"].append(dict)
             
     # Kein Input
     else:
         vardict["calculation"] = False
-        
 
     template = loader.get_template('wahlsim/index.html')
     context = RequestContext(request, vardict)
@@ -138,35 +138,33 @@ def datum(request):
     if "api" in request.GET:
         return botdatum(request)
     
-    vardict = { "error" : False }
+    vardict = {"error": False,
+               "tage": []}
     
     # Select-Listen bestücken
-    vardict["tage"] = []
     for i in range(1, 32):
-        vardict["tage"].append("%02d" % (i))
+        vardict["tage"].append("%02d" % i)
         
     vardict["monate"] = []
     for i in range(1, 13):
-        vardict["monate"].append("%02d" % (i))
+        vardict["monate"].append("%02d" % i)
         
     vardict["jahre"] = []
     for i in range(2008, 2060):
-        vardict["jahre"].append("%04d" % (i))
+        vardict["jahre"].append("%04d" % i)
         
     vardict["stunden"] = []
     for i in range(0, 24):
-        vardict["stunden"].append("%02d" % (i))
+        vardict["stunden"].append("%02d" % i)
         
     vardict["minuten"] = []
     for i in range(0, 60):
-        vardict["minuten"].append("%02d" % (i))
+        vardict["minuten"].append("%02d" % i)
     
     # POST-Input liegt vor
     datum = []
     
     if "calc" in request.POST:
-        
-        inputdatum = []
         
         # Heutiges Datum
         if request.POST["calc"] == "heute":
@@ -174,11 +172,11 @@ def datum(request):
             heute = datetime.now()
             vardict["modus"] = "sy"
             inputdatum = {
-                "tag"    : int(heute.day),
-                "monat"  : int(heute.month),
-                "jahr"   : int(heute.year),
-                "stunde" : int(heute.hour),
-                "minute" : int(heute.minute)
+                "tag":    int(heute.day),
+                "monat":  int(heute.month),
+                "jahr":   int(heute.year),
+                "stunde": int(heute.hour),
+                "minute": int(heute.minute)
             }
             calculate = sydatum.rltosy
         
@@ -187,11 +185,11 @@ def datum(request):
             vardict["calculation"] = True
             vardict["modus"] = request.POST["modus"]
             inputdatum = {
-                "tag"    : int(request.POST["tag"]),
-                "monat"  : int(request.POST["monat"]),
-                "jahr"   : int(request.POST["jahr"]),
-                "stunde" : int(request.POST["stunde"]),
-                "minute" : int(request.POST["minute"]),
+                "tag":    int(request.POST["tag"]),
+                "monat":  int(request.POST["monat"]),
+                "jahr":   int(request.POST["jahr"]),
+                "stunde": int(request.POST["stunde"]),
+                "minute": int(request.POST["minute"]),
             }
             
             # Modus SY -> RL
@@ -201,15 +199,13 @@ def datum(request):
             # Modus RL -> SY
             else:
                 calculate = sydatum.rltosy
-                
-                
-            
+
         vardict["input"] = {
-            "tag":"%02d" % (inputdatum["tag"]),
-            "monat":"%02d" % (inputdatum["monat"]),
-            "jahr":"%04d" % (inputdatum["jahr"]),
-            "stunde":"%02d" % (inputdatum["stunde"]),
-            "minute":"%02d" % (inputdatum["minute"])
+            "tag": "%02d" % (inputdatum["tag"]),
+            "monat": "%02d" % (inputdatum["monat"]),
+            "jahr": "%04d" % (inputdatum["jahr"]),
+            "stunde": "%02d" % (inputdatum["stunde"]),
+            "minute": "%02d" % (inputdatum["minute"])
         }
                 
         try:
@@ -232,6 +228,7 @@ def datum(request):
     context = RequestContext(request, vardict)
     return HttpResponse(template.render(context))
 
+
 def mssim(request):
         
     staaten = []
@@ -246,7 +243,7 @@ def mssim(request):
         t = datetime.fromtimestamp(ts).strftime("%d.%m.%Y %H:%M")
         vardict["lastupdate"] = t
     except:
-        #Absolut kein Beinbruch, wenn lastupdate fehlt
+        # Absolut kein Beinbruch, wenn lastupdate fehlt
         pass
     
     # POST-Input liegt vor
@@ -259,41 +256,41 @@ def mssim(request):
             if key.isdigit():
                 submits[int(key)] = request.POST[key]
                 
-        ms_A = 0
-        ms_B = 0
-        as_A = 0
-        as_B = 0
+        ms_a = 0
+        ms_b = 0
+        as_a = 0
+        as_b = 0
         for key in submits:
             
             staat = staaten[key - 1]
             
             if submits[key] == "a":
                 staat.partei = "a"
-                ms_A += staat.ms
-                as_A += staat.bomben
+                ms_a += staat.ms
+                as_a += staat.bomben
             elif submits[key] == "b":
                 staat.partei = "b"
-                ms_B += staat.ms
-                as_B += staat.bomben
+                ms_b += staat.ms
+                as_b += staat.bomben
             
-            #Neutralfall sowie Zweifelsfall
+            # Neutralfall sowie Zweifelsfall
             else:
                 staat.partei = "neutral"
             
         # Sieger errechnen
         winner = "Partei A"
         unentschieden = False
-        if ms_A == ms_B:
-            unentschieden = True #Template ignoriert winner
-        elif ms_B > ms_A:
+        if ms_a == ms_b:
+            unentschieden = True  # Template ignoriert winner
+        elif ms_b > ms_a:
             winner = "Partei B"
             
         # Variablen eintragen
         vardict["winner"] = winner
-        vardict["ms_A"] = ms_A
-        vardict["ms_B"] = ms_B
-        vardict["as_A"] = as_A
-        vardict["as_B"] = as_B
+        vardict["ms_a"] = ms_a
+        vardict["ms_b"] = ms_b
+        vardict["as_a"] = as_a
+        vardict["as_b"] = as_b
         vardict["unentschieden"] = unentschieden
             
     # Kein Input
@@ -303,56 +300,56 @@ def mssim(request):
             staat.partei = "neutral"
             
     vardict["staatenliste"] = staaten
-    
-    
+
     template = loader.get_template('mssim/index.html')
     context = RequestContext(request, vardict)
     return HttpResponse(template.render(context))
 
-def isInt(s):
+
+def is_int(s):
     try:
         int(s)
         return True
     except ValueError:
         return False
 
-def parseDatumGETRequest(request):
-    modus = None
+
+def parse_datum_request(request):
     if not request.GET["modus"] in ("sy", "rl", "heute"):
         raise Exception()
     if not request.GET["format"] in ("xml", "raw"):
         raise Exception()
     if request.GET["modus"] == "heute":
-        return {"modus":"heute", "format":request.GET["format"]}
+        return {"modus": "heute", "format": request.GET["format"]}
 
     return {
-        "modus":request.GET["modus"],
-        "format":request.GET["format"],
-        "jahr":int(request.GET["jahr"]),
-        "monat":int(request.GET["monat"]),
-        "tag":int(request.GET["tag"]),
-        "stunde":int(request.GET["stunde"]),
-        "minute":int(request.GET["minute"]),
+        "modus": request.GET["modus"],
+        "format": request.GET["format"],
+        "jahr": int(request.GET["jahr"]),
+        "monat": int(request.GET["monat"]),
+        "tag": int(request.GET["tag"]),
+        "stunde": int(request.GET["stunde"]),
+        "minute": int(request.GET["minute"]),
     }
 
-def botdatum(request):
-    get = None
-    try:
-        get = parseDatumGETRequest(request)
-    except:
-        return(HttpResponse("ungültiger request"))
 
-    vardict = { "error":"none" }
+def botdatum(request):
+    try:
+        get = parse_datum_request(request)
+    except:
+        return HttpResponse("ungültiger request")
+
+    vardict = {"error": "none"}
     # Heutiges Datum
     if get["modus"] == "heute":
         heute = datetime.now()
         vardict["modus"] = "sy"
         inputdatum = {
-            "tag"    : int(heute.day),
-            "monat"  : int(heute.month),
-            "jahr"   : int(heute.year),
-            "stunde" : int(heute.hour),
-            "minute" : int(heute.minute)
+            "tag":    int(heute.day),
+            "monat":  int(heute.month),
+            "jahr":   int(heute.year),
+            "stunde": int(heute.hour),
+            "minute": int(heute.minute)
         }
         calculate = sydatum.rltosy
 
@@ -360,11 +357,11 @@ def botdatum(request):
     else:
         vardict["modus"] = get["modus"]
         inputdatum = {
-            "tag"    : get["tag"],
-            "monat"  : get["monat"],
-            "jahr"   : get["jahr"],
-            "stunde" : get["stunde"],
-            "minute" : get["minute"],
+            "tag":    get["tag"],
+            "monat":  get["monat"],
+            "jahr":   get["jahr"],
+            "stunde": get["stunde"],
+            "minute": get["minute"],
         }
 
         # Modus SY -> RL
@@ -389,7 +386,6 @@ def botdatum(request):
     
     response = None
     if get["format"] == "raw":
-        text = None
         if vardict["error"] != "none":
             text = "error:"+vardict["error"]
         else:
@@ -402,17 +398,16 @@ def botdatum(request):
         xml = ET.Element("query")
         if vardict["error"] == "none":
             datedict = {
-                "jahr":vardict["jahr"],
-                "monat":vardict["monat"],
-                "tag":vardict["tag"],
-                "stunde":vardict["stunde"],
-                "minute":vardict["minute"],
+                "jahr": vardict["jahr"],
+                "monat": vardict["monat"],
+                "tag": vardict["tag"],
+                "stunde": vardict["stunde"],
+                "minute": vardict["minute"],
             }
-            xmldatum = ET.SubElement(xml, "datum", datedict)
 
         error = ET.SubElement(xml, "error")
         error.text = vardict["error"]
         response = HttpResponse(ET.tostring(xml))
         response["Content-Type"] = "application/xml"
 
-    return(response)
+    return response

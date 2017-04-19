@@ -1,95 +1,99 @@
 #!/usr/bin/env python3.4
 
 import simocracy.wiki as wiki
-import re, sys
+import re
 import simocracy.datum as sydatum
 
 from datetime import datetime
 
 unknown = "Unbekannt"
 
-"""
-Wird geworfen, falls in einer Infobox Staat wichtige
-Daten fehlen
-"""
+
 class InfoboxException(Exception):
+    """
+    Wird geworfen, falls in einer Infobox Staat wichtige
+    Daten fehlen
+    """
     pass
 
-"""
-' 103.534.464,36 xyz' -> 103534454.36
-"""
-def parseNumberToInt(string):
+
+def parse_numbertoint(string):
+    """
+    ' 103.534.464,36 xyz' -> 103534454.36
+    """
     if string is None:
         return None
-    #zB 103.534.464,36 xyz
+    # zB 103.534.464,36 xyz
     p = re.compile(r'\s*([\d\.]+)')
     if p.match(string) is not None:
         i = p.split(string)[1]
         i = i.replace(".", '')
         
-        #Fehlerabfang
+        # Fehlerabfang
         if re.match(r'\d*', i) is None:
             return None
 
         return int(i)
 
-"""
-12,649,437.32 -> '12.649.437,32'
-"""
-def parseNumberToString(n):
-    format = None
+
+def parse_numbertostring(n):
+    """
+    12,649,437.32 -> '12.649.437,32'
+    """
     if isinstance(n, int):
-        format = "{:,}"
+        formatstr = "{:,}"
     elif isinstance(n, float):
-        format = "{:,.2f}"
+        formatstr = "{:,.2f}"
     else:
         raise TypeError("n is not int or float")
-    r = format.format(n).replace(".","+").replace(",",".")
-    return r.replace("+",",")
+    r = formatstr.format(n).replace(".", "+").replace(",", ".")
+    return r.replace("+", ",")
 
-def parseEwBip(staat):
-    #EW und BIP-EW parsen
+
+def parse_ew_bip(staat):
+    # EW und BIP-EW parsen
     bip_ew = None
-    ew = None
     bip = None
-    ew = parseNumberToInt(staat["infobox"]["Einwohnerzahl"])
+    ew = parse_numbertoint(staat["infobox"]["Einwohnerzahl"])
     if "BIP-EW" in staat["infobox"]:
-        bip_ew = parseNumberToInt(staat["infobox"]["BIP-EW"])
+        bip_ew = parse_numbertoint(staat["infobox"]["BIP-EW"])
 
-    #BIP ausrechnen
+    # BIP ausrechnen
     if ew is not None:
-        #Wenn BIP-EW gegeben, BIP hieraus errechnen
+        #  Wenn BIP-EW gegeben, BIP hieraus errechnen
         if bip_ew is not None:
             bip = bip_ew*ew
-        #Anderenfalls gegebenes BIP nehmen und BIP-EW berechnen
+        # Anderenfalls gegebenes BIP nehmen und BIP-EW berechnen
         elif "BIP" in staat["infobox"]:
-            bip = parseNumberToInt(staat["infobox"]["BIP"])
+            bip = parse_numbertoint(staat["infobox"]["BIP"])
             if bip is not None and ew != 0:
                 bip_ew = float(bip) / float(ew)
 
     return {
-        "ew":ew,
-        "bip":bip,
-        "bip-ew":bip_ew,
+        "ew": ew,
+        "bip": bip,
+        "bip-ew": bip_ew,
     }
 
-"""
-3.5025 => 3,5
-"""
-def niceFloatStr(n):
+
+def nice_floatstr(n):
+    """
+    3.5025 => 3,5
+    """
     i = round(n)
     if i >= 1000:
-        return parseNumberToString(i)
-    n = '{0:g}'.format(round(n,2))
-    n = n.replace(',', '*').replace('.', ',')
-    return n.replace('*', '.')
+        return parse_numbertostring(i)
+    r = '{0:g}'.format(round(n, 2))
+    r = r.replace(',', '*').replace('.', ',').replace('*', '.')
+    return r
 
-"""
-Extrahiert den Währungsnamen aus Währungsstrings
-aus Infoboxen, zB [[Staat#Währung|Ziegen (Z)]] => Ziegen
-"""
-def extractWaehrung(s):
-    #Links auflösen
+
+def extract_waehrung(s):
+    """
+    Extrahiert den Währungsnamen aus Währungsstrings
+    aus Infoboxen, zB [[Staat#Währung|Ziegen (Z)]] => Ziegen
+    """
+    # Links auflösen
     p = re.compile(r'\[\[([^]]*)\]\]')
     while True:
         m = re.search(p, s)
@@ -100,15 +104,16 @@ def extractWaehrung(s):
         else:
             break
 
-    #Notwendige Replacementliste
+    # Notwendige Replacementliste
     s = s.replace('<br>', ' ')
    
     return re.split(r'([^({\d=]*)', s)[1].strip()
 
-"""
-Entfernt Klammerinhalte sowie kursives Zeug aus s.
-"""
-def remBrackets(s):
+
+def rem_brackets(s):
+    """
+    Entfernt Klammerinhalte sowie kursives Zeug aus s.
+    """
     patterns = [
         re.compile(r'\(.*?\)'),
         re.compile(r"''[^']*?''"),
@@ -122,20 +127,21 @@ def remBrackets(s):
 
     return s
 
-"""
-Normalisiert die Währungsangabe
-"""
-def normalizeWaehrung(s):
-    #Links übernehmen; kriegt auch Oranje-[[Gulden]] mit
-    #Match wird dafür in Teile zerteilt
+
+def normalize_waehrung(s):
+    """
+    Normalisiert die Währungsangabe
+    """
+    # Links übernehmen; kriegt auch Oranje-[[Gulden]] mit
+    # Match wird dafür in Teile zerteilt
     p = re.compile(r'(?P<pre>[^\s]*)\[\[(?P<in>[^]]*)\]\](?P<post>[^\s]*)')
     m = re.search(p, s)
     if m:
         s = m.groupdict()
     else:
-        s = {"pre":s}
+        s = {"pre": s}
 
-    #Abhacken vor bestimmten Zeichen
+    # Abhacken vor bestimmten Zeichen
     for part in s:
         charlist = [r'\(', r'<', r'\{', r'/']
         for c in charlist:
@@ -143,16 +149,16 @@ def normalizeWaehrung(s):
             if m:
                 s[part] = m.group().strip()
 
-    #Wieder zusammensetzen
+    # Wieder zusammensetzen
     r = s["pre"]
     if "in" in s:
         r = r + "[[" + s["in"] + "]]"
     if "post" in s:
-        r = r + s["post"]
+        r += s["post"]
 
     s = r
 
-    #"1 Ziege = 4 Beine" =>  "Ziege"
+    # "1 Ziege = 4 Beine" =>  "Ziege"
     p = r'\d+\s*([^\s]*)'
     m = re.match(p, s)
     if m:
@@ -160,16 +166,17 @@ def normalizeWaehrung(s):
 
     return s
 
-"""
-Normalisiert die Angabe der Amtssprache.
-"""
-def normalizeSprache(s):
-    s = remBrackets(s)
 
-    #Anhänge abhacken anhand von Signalstrings
+def normalize_sprache(s):
+    """
+    Normalisiert die Angabe der Amtssprache.
+    """
+    s = rem_brackets(s)
+
+    # Anhänge abhacken anhand von Signalstrings
     signals = []
     for el in [
-        #Signalstringliste
+        # Signalstringliste
         r'sowie',
         r'diverse',
         r'+',
@@ -179,7 +186,7 @@ def normalizeSprache(s):
     for el in signals:
         s = s.replace(el, "").strip()
 
-    #Einzelsprachen isolieren und normalisieren
+    # Einzelsprachen isolieren und normalisieren
     trenner = [
         r",",
         r";",
@@ -200,7 +207,7 @@ def normalizeSprache(s):
         if el == "":
             continue
 
-        #Capitalize
+        # Capitalize
         el = el[0].upper() + el[1:]
 
         sprachen.append(el)
@@ -212,16 +219,17 @@ def normalizeSprache(s):
     # Sonderregel für Neuseeland
     s = re.sub(r"\s*mehrheitlich\s*", "", s)
 
-    #Erstes " " und letztes "," abhacken
+    # Erstes " " und letztes "," abhacken
     return s[1:len(s)-1:1]
 
-"""
-Normalisiert die TLD-Angabe s
-"""
-def normalizeTLD(s):
-    s = remBrackets(s)
 
-    #Trenner vereinheitlichen
+def normalize_tld(s):
+    """
+    Normalisiert die TLD-Angabe s
+    """
+    s = rem_brackets(s)
+
+    # Trenner vereinheitlichen
     trenner = [
         "/",
         ",",
@@ -230,7 +238,7 @@ def normalizeTLD(s):
     for el in trenner:
         s = s.replace(el, " ")
 
-    #TLD-Angaben rauspicken und String bauen
+    # TLD-Angaben rauspicken und String bauen
     tokens = re.findall(r"(\.[^\s]*)", s)
     s = ""
     for el in tokens:
@@ -238,47 +246,49 @@ def normalizeTLD(s):
 
     return s[1:]
 
-"""
-Normalisiert KFZ-Kennzeichenangaben
-"""
-def normalizeKFZ(s):
-    s = remBrackets(s)
 
-    #Trenner vereinheitlichen
+def normalize_kfz(s):
+    """
+    Normalisiert KFZ-Kennzeichenangaben
+    """
+    s = rem_brackets(s)
+
+    # Trenner vereinheitlichen
     s = s.replace("/", ", ")
 
-    #Bilder skalieren
+    # Bilder skalieren
     size = 40
     links = wiki.parseLinks(s)
     for link in links:
         if link["file"]:
-            toRepl = wiki.buildLink(link)
-            newLink = "[["+link["uri"]
-            newLink += "|" + str(size) + "px"
+            to_repl = wiki.buildLink(link)
+            new_link = "[["+link["uri"]
+            new_link += "|" + str(size) + "px"
             if "filelink" in link:
-                newLink += "|link=" + link["filelink"]
-            newLink += "]]"
+                new_link += "|link=" + link["filelink"]
+            new_link += "]]"
 
-            #replace
-            split = re.split(re.escape(toRepl), s)
+            # replace
+            split = re.split(re.escape(to_repl), s)
             s = split[0]
             for i in range(1, len(split)):
-                s += newLink + split[i]
+                s += new_link + split[i]
 
     return s
 
-"""
-Normalisiert Vorwahlangaben
-"""
-def normalizeVorwahl(s):
+
+def normalize_vorwahl(s):
+    """
+    Normalisiert Vorwahlangaben
+    """
     if s == unknown:
         return s
 
-    s = remBrackets(s)
+    s = rem_brackets(s)
 
     split = re.split(",", s)
 
-    #auf +xy-Angabe normalisieren
+    # auf +xy-Angabe normalisieren
     s = ""
     for el in split:
         el = el.strip()
@@ -291,20 +301,22 @@ def normalizeVorwahl(s):
 
     return s[1:len(s)-1:1]
 
-"""
-Hilfsfunktion für normalizeZeitzone()
-"""
-def remWhitespace(matchobject):
+
+def rem_whitespace(matchobject):
+    """
+    Hilfsfunktion für normalizeZeitzone()
+    """
     return re.sub("\s+", "", matchobject.group())
 
-"""
-Normalisiert Zeitzonenangaben
-"""
-def normalizeZeitzone(s):
+
+def normalize_zeitzone(s):
+    """
+    Normalisiert Zeitzonenangaben
+    """
     if s == unknown:
         return s
 
-    s = remBrackets(s)
+    s = rem_brackets(s)
     trenner = [
         "/",
         "und",
@@ -318,18 +330,18 @@ def normalizeZeitzone(s):
     s = re.sub(r"UTC\s*\+", "+", s)
     s = re.sub(r"UTC\s*-", "-", s)
 
-    #"UTC" => "+0"
+    # "UTC" => "+0"
     s = re.sub(r"UTC\s*[^+\-\s]?", r"+0,", s)
 
     s = s.replace("UTC", "")
 
-    #"+ 1" => "+1"
-    s = re.sub("[+-]\s+\d*", remWhitespace, s)
+    # "+ 1" => "+1"
+    s = re.sub("[+-]\s+\d*", rem_whitespace, s)
 
-    #Whitespaces normalisieren
+    # Whitespaces normalisieren
     s = re.sub(r"\s{2,}", " ", s)
 
-    #Splitten und wieder zusammensetzen
+    # Splitten und wieder zusammensetzen
     split = re.split(r",", s)
     s = ""
     for el in split:
@@ -339,16 +351,17 @@ def normalizeZeitzone(s):
 
     return s[1:len(s)-1:1]
 
-"""
-Prüft auf wichtige Werte 
-Füllt Infobox-dicts mit unknown-Werten auf
-"""
-def normalizeInfobox(infobox, name):
-    mandatoryList = [
+
+def normalize_infobox(infobox, name):
+    """
+    Prüft auf wichtige Werte
+    Füllt Infobox-dicts mit unknown-Werten auf
+    """
+    mandatory_list = [
         "Einwohnerzahl",
         "Fläche",
     ]
-    unknownList = [
+    unknown_list = [
         "TLD",
         "Amtssprache",
         "KFZ",
@@ -357,31 +370,31 @@ def normalizeInfobox(infobox, name):
         "Kürzel",
     ]
 
-    for key in mandatoryList:
-        if not key in infobox or infobox[key] is None:
+    for key in mandatory_list:
+        if key not in infobox or infobox[key] is None:
             raise InfoboxException(key + " fehlt in Infobox " + name)
 
-    for key in unknownList:
-        if not key in infobox or infobox[key] is None:
+    for key in unknown_list:
+        if key not in infobox or infobox[key] is None:
             infobox[key] = unknown
 
     return infobox
 
 
-"""
-Erstellt eine Liste der drei meistgenutzten (nach f(w))
-Währungen in aufsteigender Reihenfolge:
-[
-  {
-    "name":name
-    "anz":anzahl
-  }, x3
-]
-"""
-def sumUpWaehrung(w, f):
+def sum_up_waehrung(w, f):
+    """
+    Erstellt eine Liste der drei meistgenutzten (nach f(w))
+    Währungen in aufsteigender Reihenfolge:
+    [
+      {
+        "name":name
+        "anz":anzahl
+      }, x3
+    ]
+    """
     erg = []
     for el in w:
-        #Währung in erg suchen; bei Fund inkrementieren
+        # Währung in erg suchen; bei Fund inkrementieren
         found = False
         for i in range(0, len(erg)):
             if el["name"] == erg[i]["name"]:
@@ -390,93 +403,81 @@ def sumUpWaehrung(w, f):
         if found:
             erg[i]["anz"] += f(el)
 
-        #Ansonsten neues dict für Währung hinzufügen
+        # Ansonsten neues dict für Währung hinzufügen
         else:
-            erg.append({"name":el["name"], "anz":f(el),})
+            erg.append({"name": el["name"], "anz": f(el)})
 
-    erg = sorted(erg, key=lambda k:k["anz"])
+    erg = sorted(erg, key=lambda k: k["anz"])
     return erg[-3:]
 
 
-def updateArticle(staaten):
+def update_article(staaten):
 
-    #Ajin ignorieren
-    #toRemove = []
-    #for staat in alleStaaten:
-    #    if "Singa Shang" in staat["uri"] or "Ajin" in staat["uri"]:
-    #        toRemove.append(staat)
-    #for el in toRemove:
-    #    alleStaaten.remove(el)
-
-    #Infoboxen normalisieren
+    # Infoboxen normalisieren
     for staat in staaten:
-        if not staat["infobox"] == None:
-            staat["infobox"] = normalizeInfobox(staat["infobox"], staat["uri"])
+        if staat["infobox"] is not None:
+            staat["infobox"] = normalize_infobox(staat["infobox"], staat["uri"])
 
-    
-    #Einzeleinträge aufsetzen
-    #Jahr ausrechnen
+    # Einzeleinträge aufsetzen
+    # Jahr ausrechnen
     heute = datetime.now()
     datum = {
-        "tag"    : int(heute.day),
-        "monat"  : int(heute.month),
-        "jahr"   : int(heute.year),
-        "stunde" : int(heute.hour),
-        "minute" : int(heute.minute)
+        "tag":    int(heute.day),
+        "monat":  int(heute.month),
+        "jahr":   int(heute.year),
+        "stunde": int(heute.hour),
+        "minute": int(heute.minute)
     }
     jahr = sydatum.rltosy(datum)["jahr"]
 
     gesamt = {
-        "flaeche":[],
-        "ew":[],
-        "bip":[],
-        "waehrung":[],
+        "flaeche": [],
+        "ew": [],
+        "bip": [],
+        "waehrung": [],
     }
 
-    #Infotabellen-dicts auslesen und Vorlageneinträge zusammensetzen
+    # Infotabellen-dicts auslesen und Vorlageneinträge zusammensetzen
     text_stats = ""
     text_info = ""
     for staat in staaten:
         
-        #Fläche
+        # Fläche
         flaeche = None
         flaeche_int = None
-        if not "infobox" in staat:
+        if "infobox" not in staat:
             print("Warnung - "+staat["uri"]+" hat keine Infobox")
             continue
         elif "Fläche" in staat["infobox"]:
-            flaeche = parseNumberToInt(staat["infobox"]["Fläche"])
+            flaeche = parse_numbertoint(staat["infobox"]["Fläche"])
             flaeche_int = flaeche
             if flaeche is None:
                 flaeche = unknown
             gesamt["flaeche"].append(flaeche)
-        #Nicht in Infobox oder nicht parsebar
+        # Nicht in Infobox oder nicht parsebar
         if flaeche is None or flaeche == 0 or flaeche == unknown:
             flaeche = unknown
         else:
-            flaeche = parseNumberToString(flaeche)
+            flaeche = parse_numbertostring(flaeche)
 
-        #BIP, BIP pro Kopf, EW
-        bip_ew = None
-        bip = None
-        ew = None
+        # BIP, BIP pro Kopf, EW
         ew_int = None
         if "infobox" in staat:
-            n = parseEwBip(staat)
+            n = parse_ew_bip(staat)
             if n["bip"] is None:
                 bip = unknown
             else:
-                bip = parseNumberToString(n["bip"])
+                bip = parse_numbertostring(n["bip"])
 
             if n["bip-ew"] is None:
                 bip_ew = unknown
             else:
-                bip_ew = parseNumberToString(n["bip-ew"])
+                bip_ew = parse_numbertostring(n["bip-ew"])
 
             if n["ew"] is None:
                 ew = unknown
             else:
-                ew = parseNumberToString(n["ew"])
+                ew = parse_numbertostring(n["ew"])
             ew_int = n["ew"]
             if n["bip"] is not None:
                 gesamt["bip"].append(n["bip"])
@@ -486,52 +487,49 @@ def updateArticle(staaten):
             bip = unknown
             bip_ew = unknown
             ew = unknown
-        if not "infobox" in staat:
+        if "infobox" not in staat:
             pass
 
-        #EW pro Fläche
-        ew_flaeche = None
+        # EW pro Fläche
         if ew_int is not None and flaeche_int is not None:
             ew_flaeche = float(ew_int) / float(flaeche_int)
-            ew_flaeche = parseNumberToString(ew_flaeche)
+            ew_flaeche = parse_numbertostring(ew_flaeche)
         else:
             ew_flaeche = unknown
 
-        #Währung
-        waehrung = None
+        # Währung
         if "Währung" in staat["infobox"]:
             waehrung = staat["infobox"]["Währung"]
             if waehrung is None or re.match(r'^\s*$', waehrung) is not None:
                 waehrung = unknown
             else:
                 d = {
-                    "name":extractWaehrung(waehrung),
-                    "ew":ew_int,
+                    "name": extract_waehrung(waehrung),
+                    "ew": ew_int,
                 }
                 gesamt["waehrung"].append(d)
         else:
             waehrung = unknown
-        waehrung = normalizeWaehrung(waehrung)
+        waehrung = normalize_waehrung(waehrung)
 
-        #Amtssprache
-        sprache = normalizeSprache(staat["infobox"]["Amtssprache"])
+        # Amtssprache
+        sprache = normalize_sprache(staat["infobox"]["Amtssprache"])
 
-        #TLD
-        tld = normalizeTLD(staat["infobox"]["TLD"])
+        # TLD
+        tld = normalize_tld(staat["infobox"]["TLD"])
         if tld is None or tld == "":
             tld = unknown
 
-        #KFZ-Kennzeichen
-        kfz = normalizeKFZ(staat["infobox"]["KFZ"])
+        # KFZ-Kennzeichen
+        kfz = normalize_kfz(staat["infobox"]["KFZ"])
 
-        #Vorwahl
-        vorwahl = normalizeVorwahl(staat["infobox"]["Telefonvorwahl"])
+        # Vorwahl
+        vorwahl = normalize_vorwahl(staat["infobox"]["Telefonvorwahl"])
 
-        #Zeitzone
-        zeitzone = normalizeZeitzone(staat["infobox"]["Zeitzone"])
+        # Zeitzone
+        zeitzone = normalize_zeitzone(staat["infobox"]["Zeitzone"])
         
-        #Vorlagentext zusammensetzen: Statistik
-        flagge = "Flagge-None.png"
+        # Vorlagentext zusammensetzen: Statistik
         flagge = staat["infobox"]["Flagge"]
         eintrag = "{{IAS Eintrag Statistik\n"
         eintrag += "|Sortierungsname="+staat["sortname"]+"\n"
@@ -545,9 +543,9 @@ def updateArticle(staaten):
         eintrag += "|BIP-EW="+bip_ew+"\n"
         eintrag += "}}\n"
 
-        text_stats = text_stats + eintrag
+        text_stats += eintrag
 
-        #Vorlagentext zusammensetzen: Allgemeine Informationen
+        # Vorlagentext zusammensetzen: Allgemeine Informationen
         flagge = staat["infobox"]["Flagge"]
         eintrag = "{{IAS Eintrag Info\n"
         eintrag += "|Sortierungsname="+staat["sortname"]+"\n"
@@ -563,9 +561,9 @@ def updateArticle(staaten):
         eintrag += "|Zeitzone="+zeitzone+"\n"
         eintrag += "}}\n"
 
-        text_info = text_info + eintrag
+        text_info += eintrag
 
-    #Allgemeine Statistiken
+    # Allgemeine Statistiken
     pre = "<onlyinclude>{{IAS Anfang\n"
     pre += "|Jahr="+str(int(jahr))+"\n"
 
@@ -574,47 +572,47 @@ def updateArticle(staaten):
         if el is not unknown:
             flaeche_gesamt += el
     flaeche_schnitt = flaeche_gesamt / len(gesamt["flaeche"])
-    pre += "|Gesamt-Fläche="+parseNumberToString(flaeche_gesamt)+"\n"
-    pre += "|Schnitt-Fläche="+parseNumberToString(flaeche_schnitt)+"\n"
+    pre += "|Gesamt-Fläche=" + parse_numbertostring(flaeche_gesamt) + "\n"
+    pre += "|Schnitt-Fläche=" + parse_numbertostring(flaeche_schnitt) + "\n"
 
     ew_gesamt = 0
     for el in gesamt["ew"]:
         ew_gesamt += el
     ew_schnitt = float(ew_gesamt) / float(len(gesamt["ew"]))
-    pre += "|Gesamt-EW="+parseNumberToString(round(ew_gesamt))+"\n"
-    pre += "|Schnitt-EW="+niceFloatStr(ew_schnitt)+"\n"
+    pre += "|Gesamt-EW=" + parse_numbertostring(round(ew_gesamt)) + "\n"
+    pre += "|Schnitt-EW=" + nice_floatstr(ew_schnitt) + "\n"
 
     bip_gesamt = 0
     for el in gesamt["bip"]:
         bip_gesamt += el
     bip_schnitt = bip_gesamt / len(gesamt["bip"])
-    pre += "|Gesamt-BIP="+parseNumberToString(bip_gesamt)+"\n"
-    pre += "|Schnitt-BIP="+parseNumberToString(bip_schnitt)+"\n"
+    pre += "|Gesamt-BIP=" + parse_numbertostring(bip_gesamt) + "\n"
+    pre += "|Schnitt-BIP=" + parse_numbertostring(bip_schnitt) + "\n"
 
     ew_fl_gesamt = float(ew_gesamt) / float(flaeche_gesamt)
     bip_ew_gesamt = float(bip_gesamt) / float(ew_gesamt)
-    pre += "|EW-Fläche="+niceFloatStr(ew_fl_gesamt)+"\n"
-    pre += "|BIP-EW="+parseNumberToString(int(bip_ew_gesamt))+"\n"
+    pre += "|EW-Fläche=" + nice_floatstr(ew_fl_gesamt) + "\n"
+    pre += "|BIP-EW=" + parse_numbertostring(int(bip_ew_gesamt)) + "\n"
 
-    #Währungen nach Anzahl Staaten
-    erg = sumUpWaehrung(gesamt["waehrung"], lambda w:1)
+    # Währungen nach Anzahl Staaten
+    erg = sum_up_waehrung(gesamt["waehrung"], lambda w: 1)
     pre += "|WährungSt1="+erg[2]["name"]+"\n"
-    pre += "|WährungStAnz1="+parseNumberToString(erg[2]["anz"])+"\n"
+    pre += "|WährungStAnz1=" + parse_numbertostring(erg[2]["anz"]) + "\n"
     pre += "|WährungSt2="+erg[1]["name"]+"\n"
-    pre += "|WährungStAnz2="+parseNumberToString(erg[1]["anz"])+"\n"
+    pre += "|WährungStAnz2=" + parse_numbertostring(erg[1]["anz"]) + "\n"
     pre += "|WährungSt3="+erg[0]["name"]+"\n"
-    pre += "|WährungStAnz3="+parseNumberToString(erg[0]["anz"])+"\n"
+    pre += "|WährungStAnz3=" + parse_numbertostring(erg[0]["anz"]) + "\n"
 
-    #Währung nach EW
-    erg = sumUpWaehrung(gesamt["waehrung"], lambda w:w["ew"])
+    # Währung nach EW
+    erg = sum_up_waehrung(gesamt["waehrung"], lambda w: w["ew"])
     pre += "|WährungEw1="+erg[2]["name"]+"\n"
-    pre += "|WährungEwAnz1="+parseNumberToString(erg[2]["anz"])+"\n"
+    pre += "|WährungEwAnz1=" + parse_numbertostring(erg[2]["anz"]) + "\n"
     pre += "|WährungEw2="+erg[1]["name"]+"\n"
-    pre += "|WährungEwAnz2="+parseNumberToString(erg[1]["anz"])+"\n"
+    pre += "|WährungEwAnz2=" + parse_numbertostring(erg[1]["anz"]) + "\n"
     pre += "|WährungEw3="+erg[0]["name"]+"\n"
-    pre += "|WährungEwAnz3="+parseNumberToString(erg[0]["anz"])+"\n}}\n"
+    pre += "|WährungEwAnz3=" + parse_numbertostring(erg[0]["anz"]) + "\n}}\n"
 
-    #IAS Anfang Statistik und Tabber
+    # IAS Anfang Statistik und Tabber
     pre += "<Tabber>\nStatistiken={{IAS Anfang Statistik}}"
 
     text = pre + text_stats
@@ -629,7 +627,7 @@ def updateArticle(staaten):
     text += "[[Kategorie:Fluggbot]]"
     wiki.editArticle("Vorlage:IAS", text)
 
-    #Staaten zählen
+    # Staaten zählen
     bespielt = 0
     spielerlos = 0
     for staat in staaten:
@@ -638,33 +636,33 @@ def updateArticle(staaten):
         else:
             bespielt += 1
     
-    #Vorlage:Anzahl Staaten
+    # Vorlage:Anzahl Staaten
     text = "<onlyinclude><includeonly>" + str(len(staaten))
-    text = text + "</includeonly></onlyinclude>\n"
-    text = text + "Diese Vorlage gibt die aktuelle Anzahl der Staaten in Simocracy "
-    text = text + "zurück. Gezählt werden alle Staaten des Planeten.<br>\nSie wird auf "
-    text = text + "Basis der Staatenliste im [[Wikocracy:Portal|Portal]] berechnet.\n\n"
-    text = text + "[[Kategorie:Fluggbot]]"
+    text += "</includeonly></onlyinclude>\n"
+    text += "Diese Vorlage gibt die aktuelle Anzahl der Staaten in Simocracy "
+    text += "zurück. Gezählt werden alle Staaten des Planeten.<br>\nSie wird auf "
+    text += "Basis der Staatenliste im [[Wikocracy:Portal|Portal]] berechnet.\n\n"
+    text += "[[Kategorie:Fluggbot]]"
     wiki.editArticle("Vorlage:Anzahl_Staaten", text)
 
-    #Vorlage:Anzahl Freie Staaten
+    # Vorlage:Anzahl Freie Staaten
     text = "<onlyinclude><includeonly>" + str(spielerlos)
-    text = text + "</includeonly></onlyinclude>\n"
-    text = text + "Diese Vorlage gibt die aktuelle Anzahl der freien Staaten in "
-    text = text + "Simocracy zurück. Gezählt werden alle Staaten des Planeten.<br>\nSie "
-    text = text + "wird auf Basis der Staatenliste im [[Wikocracy:Portal|Portal]] berechnet."
-    text = text + "\n\n[[Kategorie:Fluggbot]]"
+    text += + "</includeonly></onlyinclude>\n"
+    text += + "Diese Vorlage gibt die aktuelle Anzahl der freien Staaten in "
+    text += + "Simocracy zurück. Gezählt werden alle Staaten des Planeten.<br>\nSie "
+    text += + "wird auf Basis der Staatenliste im [[Wikocracy:Portal|Portal]] berechnet."
+    text += + "\n\n[[Kategorie:Fluggbot]]"
     wiki.editArticle("Vorlage:Anzahl_Freie_Staaten", text)
 
-    #Vorlage:Anzahl Bespielte Staaten
+    # Vorlage:Anzahl Bespielte Staaten
     text = "<onlyinclude><includeonly>" + str(bespielt)
-    text = text + "</includeonly></onlyinclude>\n"
-    text = text + "Diese Vorlage gibt die aktuelle Anzahl der bespielten Staaten in "
-    text = text + "Simocracy zurück.<br>\nSie wird auf Basis der Staatenliste im "
-    text = text + "[[Wikocracy:Portal|Portal]] berechnet.\n\n[[Kategorie:Fluggbot]]"
+    text += + "</includeonly></onlyinclude>\n"
+    text += + "Diese Vorlage gibt die aktuelle Anzahl der bespielten Staaten in "
+    text += + "Simocracy zurück.<br>\nSie wird auf Basis der Staatenliste im "
+    text += + "[[Wikocracy:Portal|Portal]] berechnet.\n\n[[Kategorie:Fluggbot]]"
     wiki.editArticle("Vorlage:Anzahl_Bespielte_Staaten", text)
 
-    #Vorlage:Anzahl Spieler
+    # Vorlage:Anzahl Spieler
     spielerliste = []
     for staat in staaten:
         if staat["spielerlos"]:
@@ -676,16 +674,16 @@ def updateArticle(staaten):
         spieler = spieler.split(";")
         for el in spieler:
             el = el.strip()
-            if not el in spielerliste:
+            if el not in spielerliste:
                 spielerliste.append(el)
         spielerliste = sorted(spielerliste, key=lambda s: s.lower())
 
     text = "<onlyinclude><includeonly>" + str(len(spielerliste))
-    text = text + "</includeonly></onlyinclude>\n"
-    text = text + "Diese Vorlage gibt die aktuelle Anzahl der aktiven Spieler "
-    text = text + "in Simocracy zurück.<br>\nSie wird auf Basis der Staatenliste im "
-    text = text + "[[Wikocracy:Portal|Portal]] berechnet.<br>\n===Derzeitige Spieler===\n"
+    text += + "</includeonly></onlyinclude>\n"
+    text += + "Diese Vorlage gibt die aktuelle Anzahl der aktiven Spieler "
+    text += + "in Simocracy zurück.<br>\nSie wird auf Basis der Staatenliste im "
+    text += + "[[Wikocracy:Portal|Portal]] berechnet.<br>\n===Derzeitige Spieler===\n"
     for spieler in spielerliste:
-        text = text + spieler + "<br>\n"
-    text = text + "\n[[Kategorie:Fluggbot]]"
+        text += spieler + "<br>\n"
+    text += "\n[[Kategorie:Fluggbot]]"
     wiki.editArticle("Vorlage:Anzahl_Spieler", text)
