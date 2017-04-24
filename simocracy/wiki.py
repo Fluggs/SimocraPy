@@ -331,7 +331,7 @@ class Article:
             raise Exception("404: " + self.title)
             
         for line in site.readlines():
-            self.text.append(line.decode('utf-8').strip(os.linesep).strip("\n"))
+            self.text.append(remove_html_comments(line.decode('utf-8').strip(os.linesep).strip("\n")))
 
     @property
     def as_string(self):
@@ -775,7 +775,7 @@ def read_states(vz):
         for t in article.templates:
             if t.name == "Infobox Staat":
                 infobox = t.values
-                continue
+                break
 
         if infobox is None:
             print("Keine Infobox: "+staat["uri"])
@@ -1008,6 +1008,30 @@ def remove_links(s):
             if name == "":
                 raise Exception("link "+name+"is not gobal")
         s = parts[0] + name + parts[1]
+
+    return s
+
+
+def remove_html_comments(s):
+    """
+    removes html comments from s.
+    :param s: the string the comments are removed from
+    :return: s without html comments
+    """
+    if "<!--" not in s:
+        return s
+
+    """
+    Splits s by <!-- and -->, takes the first and the last part away and does things with the stuff in between.
+    """
+    while True:
+        start_parts = s.split("<!--", maxsplit=1)
+        if len(start_parts) < 2:
+            break
+        end_parts = start_parts[1].split("-->", maxsplit=1)
+        if len(end_parts) < 2:
+            break
+        s = start_parts[0] + end_parts[1]
 
     return s
 
