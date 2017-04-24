@@ -133,16 +133,33 @@ def normalize_waehrung2(s, article):
     currency = wiki.remove_links(currency)
     print(currency)
 
-    split_list = [",", ";", "(", "<", "sowie", "'", "<br>",]
+    split_list = [",", ";", "(", "=", "sowie", "'", "<br>", ]
     for divider in split_list:
         parts = currency.split(divider)
+        found = False
         for part in parts:
             part = part.strip()
             if part != "":
-                print("part: "+part)
                 currency = part
+                found = True
                 break
+        if not found:
             raise Exception('we just divided a currency string and got nothing out of it, should not happen:\n"'+s+'"')
+
+    # "1 Ziege = 4 Beine" =>  "Ziege"
+    p = r"\d+$"
+    parts = currency.split(" ")
+    todel = []
+    for el in parts:
+        if re.match(p, s):
+            todel.append(el)
+    for el in todel:
+        parts.remove(el)
+    # wieder zusammenbauen
+    currency = ""
+    for el in parts:
+        currency += el + " "
+    currency = currency[:-1]
 
     # Währungssstring mit Link wieder zusammenbauen
     r = {"name": currency}
