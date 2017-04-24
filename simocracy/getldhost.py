@@ -19,11 +19,11 @@ def main():
 
     #Revisions sammeln
     revs = {}
-    for page in wiki.allPages():
+    for page in wiki.all_pages():
         ##zerbricht an ß
         #title = urllib.parse.quote(page)
         title = page
-        xml = wiki.sendQuery(
+        xml = wiki.send_query(
             "redirects",
             "prop=revisions",
             "titles="+urllib.parse.quote(page),
@@ -73,7 +73,7 @@ def main():
     #Revisioncontents parsen und LD-Host-Links extrahieren
     links = []
     for title in revs:
-        qry = wiki.buildQuery((
+        qry = wiki.build_query((
             "titles="+title,
             "prop=revisions",
             "rvstartid="+revs[title],

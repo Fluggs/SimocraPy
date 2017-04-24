@@ -1,6 +1,8 @@
 #!/usr/bin/env python3.4
 
-import urllib.request, urllib.parse, urllib.error
+import urllib.request
+import urllib.parse
+import urllib.error
 import http.cookiejar
 import xml.etree.ElementTree as ET
 import sys
@@ -19,14 +21,14 @@ try:
 except ImportError:
     pass
 
-##############
-### Config ###
-#username = "USERNAME"
-#password = "PASSWORD"
+############
+# Config ###
+# username = "USERNAME"
+# password = "PASSWORD"
 
 _url = 'https://simocracy.de/'
 _vz = "Wikocracy:Portal"
-sortprefixes = [
+sort_prefixes = [
     'Königreich',
     'Republik',
     'Bundesrepublik',
@@ -38,7 +40,7 @@ sortprefixes = [
     'Hl.',
 ]
 
-imageKeywords = [
+image_keywords = [
     'File:',
     'file:',
     'Image:',
@@ -52,31 +54,34 @@ imageKeywords = [
 
 opener = None
 
-#Flow Control für falls kein Template im Artikel gefunden wird
+
+# Flow Control für falls kein Template im Artikel gefunden wird
 class NoTemplate(Exception):
     pass
+
 
 class ConfigError(Exception):
     pass
 
-"""
-Geparste Vorlage in Artikel
-"""
+
 class Template:
+    """
+    Geparste Vorlage in Artikel
+    """
 
     def __init__(self, article):
         self.article = article
         self.name = None
         self.values = {}
         
-        #nested templates; list bestehend aus:
-        #{"start":startcursor, "end":endcursor, "template":Template()}
+        # nested templates; list bestehend aus:
+        # {"start":startcursor, "end":endcursor, "template":Template()}
         self.subtemplates = []
         
-        #"anonyme" Werte in Vorlagen ({{Vorlage|Wert}})
+        # "anonyme" Werte in Vorlagen ({{Vorlage|Wert}})
         self.anonymous = 0
         
-        #Setup State Machine
+        # Setup State Machine
         self.fsm = StateMachine()
         self.fsm.add_state("start", self.start_state)
         self.fsm.set_start("start")
@@ -91,12 +96,12 @@ class Template:
         self.p_linkstart = re.compile(r"\[\[")
         self.p_link = re.compile(r"\[\[(.*?)\]\]")
         self.p_slicer = re.compile(r"\|")
-        #Marker für nächsten Abschnitt; dh Ende der Vorlage oder nächster Wert
+        # Marker für nächsten Abschnitt; dh Ende der Vorlage oder nächster Wert
         self.slicers = {
-            self.p_end    : "end",
-            self.p_slicer : "value",
-            self.p_start  : "start",
-            self.p_linkstart : "link",
+            self.p_end:       "end",
+            self.p_slicer:    "value",
+            self.p_start:     "start",
+            self.p_linkstart: "link",
         }
         
         self.fsm.run()
@@ -118,31 +123,30 @@ class Template:
                 raise NoTemplate()
             return "start"
             
-        cursor = { "line" : self.article.cursor["line"] }
+        cursor = {"line": self.article.cursor["line"]}
         cursor["char"] = start.span()[1] + self.article.cursor["char"]
         self.article.cursor = cursor
         return "name"
-        
-        
-    """Name der Vorlage"""
+
     def name_state(self):
+        """Name der Vorlage"""
         line = self.article.line
-        newState = None
+        new_state = None
         
-        #Hinteren Vorlagenkram abhacken
-        startCursor = self.article.cursor
+        # Hinteren Vorlagenkram abhacken
+        start_cursor = self.article.cursor
         for slicer in self.slicers:
             match = slicer.search(line)
             if not match:
                 continue
             
             line = line[:match.span()[0]]
-            self.article.cursor = match.span()[1] + startCursor["char"]
-            newState = self.slicers[slicer]
+            self.article.cursor = match.span()[1] + start_cursor["char"]
+            new_state = self.slicers[slicer]
             
-        #TODO
-        #if self.slicers[slicer] == "start":
-        #    raise Exception("template in template name: " + line.rstrip('\n'))
+        # TODO
+        # if self.slicers[slicer] == "start":
+        #     raise Exception("template in template name: " + line.rstrip('\n'))
                 
         line = line.strip()
         if line == "":
@@ -150,11 +154,11 @@ class Template:
             
         self.name = line.strip()
         
-        if newState:
-            return newState
+        if new_state:
+            return new_state
             
-        #Nächsten Status in nächster Zeile suchen
-        newState = None
+        # Nächsten Status in nächster Zeile suchen
+        new_state = None
         while True:
             try:
                 line = self.article.__next__()
@@ -170,21 +174,20 @@ class Template:
                     continue
 
                 span = match.span()
-                newState = self.slicers[slicer]
+                new_state = self.slicers[slicer]
 
-                #TODO
-                #template name over multiple lines
+                # TODO
+                # template name over multiple lines
 
-            if newState:
+            if new_state:
                 c = self.article.cursor["char"] + span[1]
                 self.article.cursor = c
-                return newState
-                
-    
-    """Vorlageneintrag /-wert; sucht über mehrere Zeilen hinweg"""
+                return new_state
+
     def value_state(self):
-        #hinteren Kram abhacken; mehrere Zeilen zusammensammeln
-        newState = "continue"
+        """Vorlageneintrag /-wert; sucht über mehrere Zeilen hinweg"""
+        # hinteren Kram abhacken; mehrere Zeilen zusammensammeln
+        new_state = "continue"
         value = ""
         while True:
             line = self.article.line
@@ -194,59 +197,57 @@ class Template:
                 if not match:
                     continue
             
-                newState = self.slicers[slicer]
+                new_state = self.slicers[slicer]
                 span = match.span()
                 line = line[:span[0]]
                 
             value += line
             
-            #link parsen [[ ... ]]
-            if newState is "link":
+            # link parsen [[ ... ]]
+            if new_state is "link":
                 cursor = self.article.cursor
                 self.article.cursor = cursor["char"] + span[0]
-                del(cursor)
+                del cursor
                 m = self.p_link.match(self.article.line)
-                endCursor = None
-                asString = None
                 
-                #Angetäuschtes [[ ohne Link
+                # Angetäuschtes [[ ohne Link
                 if m is None:
-                    endCursor = self.article.cursor
-                    endCursor["char"] += 2
-                    asString = "[["
-                #Echter Link
+                    end_cursor = self.article.cursor
+                    end_cursor["char"] += 2
+                    as_string = "[["
+                # Echter Link
                 else:
-                    endCursor = self.article.cursor
-                    endCursor["char"] += m.span()[1]
-                    asString = self.article.extract(self.article.cursor,endCursor)
+                    end_cursor = self.article.cursor
+                    end_cursor["char"] += m.span()[1]
+                    as_string = self.article.extract(self.article.cursor, end_cursor)
                     
-                value += asString
-                self.article.cursor = endCursor
+                value += as_string
+                self.article.cursor = end_cursor
                 
-                newState = "continue"
+                new_state = "continue"
                 continue
             
-            #nested template
-            elif newState is "start":
+            # nested template
+            elif new_state is "start":
                 cursor = self.article.cursor
                 cursor["char"] += span[0]
                 self.article.cursor = cursor
                 
                 template = Template(self.article)
-                subt = {"startcursor" : cursor,
-                        "template" : template,
-                        "endcursor" : self.article.cursor}
+                subt = {"startcursor": cursor,
+                        "template": template,
+                        "endcursor": self.article.cursor}
                 self.subtemplates.append(subt)
                 
-                asString = self.article.extract(cursor, subt["endcursor"])
-                value += asString
+                as_string = self.article.extract(cursor, subt["endcursor"])
+                value += as_string
                 self.article.cursor = subt["endcursor"]
                 
-                newState = "continue"
+                new_state = "continue"
                 continue
             
-            #v.a. Cursor setzen
-            elif newState is not "continue":
+            # v.a. Cursor setzen
+            elif new_state is not "continue":
                 self.article.cursor = span[1] + self.article.cursor["char"]
                 break
                 
@@ -256,11 +257,11 @@ class Template:
             except StopIteration:
                 raise NoTemplate()
                 
-        #value parsen
+        # value parsen
         split = value.split("=")
         if len(split) > 1:
             value = split[1]
-            #mögliche weitere = in value abfangen
+            # mögliche weitere = in value abfangen
             for el in range(2, len(split)):
                 value += "=" + split[el]
                 
@@ -269,7 +270,7 @@ class Template:
                 raise Exception("template in key: "+key)
             self.values[key] = value.strip()
             
-        #anonyme values
+        # anonyme values
         else:
             key = 1
             while True:
@@ -280,40 +281,38 @@ class Template:
                     
             self.values[key] = split[0].strip()
             
-        return newState
+        return new_state
                 
-            
-            
 
-"""
-Artikelklasse; iterierbar über Zeilen
-"""
 class Article:
     """
-    Öffnet einen Wikiartikel; löst insb. Redirections auf.
-    name: Artikelname
+    Artikelklasse; iterierbar über Zeilen
     """
     def __init__(self, name, redirect=True):
+        """
+        Öffnet einen Wikiartikel; löst insb. Redirections auf.
+        name: Artikelname
+        """
         self.title = None
         self.templates = None
         self.text = []
         self._asString = None
-        self._cursor = { "line":-1, "char":0, "modified":False }
+        self._cursor = {"line": -1, "char": 0, "modified": False}
         
         qry = "api.php?format=xml&action=query&titles="
         qry = _url + qry + urllib.parse.quote(name)
         if redirect:
-            qry = qry + "&redirects"
+            qry += "&redirects"
         response = opener.open(qry)
 
-        #Leerzeile ueberspringen
+        # Leerzeile ueberspringen
         response.readline()
 
-        #XML einlesen
+        # XML einlesen
         xml = ET.fromstring(response.readline())
 
         article = xml.find("query").find("pages")
-        #Spezialseiten abfangen (z.B. Hochladen)
+        # Spezialseiten abfangen (z.B. Hochladen)
         if not article:
             raise Exception("Spezialseite")
 
@@ -325,7 +324,6 @@ class Article:
 
         self.title = article.find("page").attrib["title"]
         print("Öffne " + self.title)
-        site = None
         try:
             qry = _url+urllib.parse.quote(self.title) + "?action=raw"
             site = opener.open(qry)
@@ -334,83 +332,82 @@ class Article:
             
         for line in site.readlines():
             self.text.append(line.decode('utf-8').strip(os.linesep).strip("\n"))
-            
-    """
-    Artikeltext als String
-    """
+
     @property
-    def asString(self):
+    def as_string(self):
+        """
+        Artikeltext als String
+        """
         if self._asString is not None:
             return self._asString
 
         start = {
-            "line" : 0,
-            "char" : 0,
+            "line": 0,
+            "char": 0,
         }
         lastline = len(self.text) - 1
         end = {
-            "line" : lastline,
-            "char" : len(self.text[lastline]),
+            "line": lastline,
+            "char": len(self.text[lastline]),
         }
 
         self._asString = self.extract(start, end)
         return self._asString
-    
 
-    """
-    Cursor-Definition
-    { "line":line, "char":char, "modified":True|False }
-    """
     @property
     def cursor(self):
+        """
+        Cursor-Definition
+        { "line":line, "char":char, "modified":True|False }
+        """
         return self._cursor.copy()
        
-    #value kann vollständiger Cursor oder nur char sein
+    # value kann vollständiger Cursor oder nur char sein
     @cursor.setter
     def cursor(self, value):
-        #vollständiger Cursor übergeben
+        # vollständiger Cursor übergeben
         try:
             self._cursor = { 
-                "line" : value["line"] + 0,
-                "char" : value["char"] + 0,
-                "modified" : True,
+                "line": value["line"] + 0,
+                "char": value["char"] + 0,
+                "modified": True,
             }
         except:
-            #nur char übergeben
+            # nur char übergeben
             try:
                 self._cursor = {
-                    "line" : self._cursor["line"],
-                    "char" : value + 0,
-                    "modified" : True,
+                    "line": self._cursor["line"],
+                    "char": value + 0,
+                    "modified": True,
                 }
             except:
                 raise Exception("invalid cursor: " + str(value))
         
-    def resetCursor(self):
-        self._cursor = { "line":-1, "char":0, "modified":False }
-        
-    """
-    Gibt den Teil zwischen den Cursorn start und end zurück;
-    alle Zeilen aneinandergehängt und mit \n getrennt
-    """
+    def reset_cursor(self):
+        self._cursor = {"line": -1, "char": 0, "modified": False}
+
     def extract(self, start, end, linesep=os.linesep):
-        #Nur eine Zeile
+        """
+        Gibt den Teil zwischen den Cursorn start und end zurück;
+        alle Zeilen aneinandergehängt und mit \n getrennt
+        """
+        # Nur eine Zeile
         if start["line"] == end["line"]:
             return self.text[start["line"]][start["char"]:end["char"]]
         
         r = ""
         for i in range(start["line"], end["line"] + 1):
-            #Anfangszeile
+            # Anfangszeile
             if i == start["line"]:
                 r += self.text[i][start["char"]:] + linesep
-            #Endzeile
+            # Endzeile
             elif i == end["line"]:
                 return r + self.text[i][:end["char"]]
                 
             else:
                 r += self.text[i] + linesep
                 
-        #Sollte eigentlich nicht auftreten, da return in Endzeile
+        # Sollte eigentlich nicht auftreten, da return in Endzeile
         raise RuntimeError()
             
     """
@@ -425,7 +422,7 @@ class Article:
     def __next__(self):
         if self._cursor["modified"]:
             self._cursor["modified"] = False
-        #else:
+
         self._cursor["line"] += 1
         self._cursor["char"] = 0
             
@@ -446,30 +443,30 @@ class Article:
         nothing = 1
         name = 2
         value = 3
-                
-            
-    """
-    Parst alle Vorlagen im Artikel text und gibt ein dict zurueck.
-    Setzt den Cursor zurück.
-    """
-    def parseTemplates(self):
+
+    def parse_templates(self):
+        """
+        Parst alle Vorlagen im Artikel text und gibt ein dict zurueck.
+        Setzt den Cursor zurück.
+        """
         self.templates = []
-        self.resetCursor()
+        self.reset_cursor()
         while True:
             try:
                 self.templates.append(Template(self))
             except NoTemplate:
                 break
                 
-"""
-Loggt den User ins Wiki ein.
-"""
-def login(user = None, passwd = None):
-    #Config Check
+
+def login(user=None, passwd=None):
+    """
+    Loggt den User ins Wiki ein.
+    """
+    # Config Check
     global username
     global password
 
-    if not user is None and not passwd is None:
+    if user is not None and passwd is not None:
         username = user
         password = passwd
 
@@ -478,29 +475,29 @@ def login(user = None, passwd = None):
 
     global opener
 
-    #Ersten Request zusammensetzen, der das Login-Token einsammelt
-    query_args = { 'lgname':username, 'lgpassword':password }
+    # Ersten Request zusammensetzen, der das Login-Token einsammelt
+    query_args = {'lgname': username, 'lgpassword': password}
     qry_args = urllib.parse.urlencode(query_args).encode('utf-8')
     qry = _url + 'api.php?format=xml&action=login'
     c = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(c))
     response = opener.open(qry, qry_args)
 
-    #Token aus xml extrahieren
-    response.readline() #Leerzeile überspringen
-    xmlRoot = ET.fromstring(response.readline())
-    lgToken = xmlRoot.find('login').attrib['token']
-    session = xmlRoot.find('login').attrib['sessionid']
+    # Token aus xml extrahieren
+    response.readline()  # Leerzeile überspringen
+    xml_root = ET.fromstring(response.readline())
+    lg_token = xml_root.find('login').attrib['token']
+    # session = xml_root.find('login').attrib['sessionid']
 
-    #Zweiter Request mit Login-Token
-    query_args.update({'lgtoken':lgToken})
+    # Zweiter Request mit Login-Token
+    query_args.update({'lgtoken': lg_token})
     data = urllib.parse.urlencode(query_args).encode('utf-8')
     response = opener.open(_url+'api.php?format=xml&action=login', data)
 
-    #Login-Status; ggf. abbrechen
-    response.readline() #Leerzeile überspringen
-    xmlRoot = ET.fromstring(response.readline())
-    result = xmlRoot.find('login').attrib['result']
+    # Login-Status; ggf. abbrechen
+    response.readline()  # Leerzeile überspringen
+    xml_root = ET.fromstring(response.readline())
+    result = xml_root.find('login').attrib['result']
 
     if result != "Success":
         raise Exception("Login: " + result)
@@ -508,47 +505,48 @@ def login(user = None, passwd = None):
         print(("Login: " + result))
 
 
-"""
-Generator für Namen aller Wikiseiten
-"""
-def allPages(resume=None):
+def all_pages(resume=None):
+    """
+    Generator für Namen aller Wikiseiten
+    """
     qry = _url+'api.php?action=query&list=allpages&aplimit=5000&format=xml'
     if resume:
         qry = qry + "&apfrom=" + resume
     response = opener.open(qry)
 
-    #Leerzeile ueberspringen
+    # Leerzeile ueberspringen
     response.readline()
 
-    #XML einlesen
+    # XML einlesen
     xml = ET.fromstring(response.readline())
 
     for page in xml.iter('p'):
         yield page.attrib['title']
 
-"""
-Liest Staaten und Bündnisse aus dem
-Verzeichnis-Seitentext site aus und packt sie in ein dict.
-Keys: staaten, buendnisse
 
-staaten: Liste aus dicts; keys:
-nummer
-flagge (bild-URL)
-name
-uri (Artikelname)
-buendnis (flaggen-URL)
-ms
-as
-spieler
-zweitstaat
+def read_vz():
+    """
+    Liest Staaten und Bündnisse aus dem
+    Verzeichnis-Seitentext site aus und packt sie in ein dict.
+    Keys: staaten, buendnisse
 
-buendnisse: array aus dicts; keys:
-    flagge
+    staaten: Liste aus dicts; keys:
+    nummer
+    flagge (bild-URL)
     name
-    
-zB Zugriff auf Staatenname: r["staaten"][0]["name"]
-"""
-def readVZ():
+    uri (Artikelname)
+    buendnis (flaggen-URL)
+    ms
+    as
+    spieler
+    zweitstaat
+
+    buendnisse: array aus dicts; keys:
+        flagge
+        name
+
+    zB Zugriff auf Staatenname: r["staaten"][0]["name"]
+    """
     article = Article(_vz)
 
     if not article:
@@ -563,7 +561,6 @@ def readVZ():
     """
     # "|Staaten=" suchen
     i = 0
-    found = False
     while True:
         if re.match('^\s*|\s*Staaten\s*=\s*', text[i]):
             i += 1
@@ -572,7 +569,6 @@ def readVZ():
         i += 1
     if not found:
         raise Exception("|Staaten= nicht gefunden.")
-    found = False
     
     # erstes "{{!}}-" suchen
     while True:
@@ -583,7 +579,6 @@ def readVZ():
         i += 1
     if not found:
         raise Exception("Staatentabellenheader nicht gefunden.")
-    found = False
     
     # zweites "{{!}}-" suchen
     while True:
@@ -594,68 +589,61 @@ def readVZ():
         i += 1
     if not found:
         raise Exception("Staatentabelleninhalt nicht gefunden.")
-    found = False
     
-    #Tabelle parsen
-    entryCtr = 0
+    # Tabelle parsen
+    entry_ctr = 0
     dict = {}
     staaten = []
-    #gegen highlightbug X_x
+    # gegen highlightbug X_x
     ta = "'" + "'" + "'"
     name_p = re.compile(r'\{\{!\}\}\s*'+ta+'\s*(\[\[[^]]*\]\])\s*'+ta+'\s*<br>\s*(.*)')
     flagge_p = re.compile(r'\{\{!\}\}\s*(\[\[[^]]*\]\])\s*')
     zahl_p = re.compile(r'\{\{!\}\}\s*(\(*[\d-]*\)*)\s*')
     while True:
-        #Tabellenende
+        # Tabellenende
         if text[i].startswith('{{!}}}'):
             i += 1
             break
-        #Tabelleneintrag
+        # Tabelleneintrag
         if not text[i].startswith('{{!}}'):
             i += 1
             continue
         
-        #Datensatz zuende
+        # Datensatz zuende
         if text[i].startswith('{{!}}-'):
-            if entryCtr == 5:
+            if entry_ctr == 5:
                 staaten.append(dict.copy())
                 dict.clear()
             i += 1
-            entryCtr = 0
+            entry_ctr = 0
             continue
-            
-        key = ""
+
         value = text[i].strip()
         
-        #Ins dict eintragen; evtl value korrigieren
-        if entryCtr == 0:
+        # Ins dict eintragen; evtl value korrigieren
+        if entry_ctr == 0:
             value = value.replace('{{!}}', '').strip()
-            #try:
-            #    dict["flagge"] = extractFlag(value)
-            #except:
-            #    raise Exception("fehler bei Flaggencode "+value)
             
-        elif entryCtr == 1:
+        elif entry_ctr == 1:
             tokens = re.split(name_p, value)
-            names = getStateNames(tokens[1])
+            names = get_state_names(tokens[1])
             dict["name"] = names["name"]
             dict["uri"] = names["uri"]
             dict["sortname"] = names["sortname"]
 
-
-            #Spielername
+            # Spielername
             dict["spieler"] = tokens[2].replace('[[', '').replace(']]', '')
             
-        elif entryCtr == 2:
+        elif entry_ctr == 2:
             try:
                 value = re.split(flagge_p, value)[1]
-                dict["buendnis"] = extractFlag(value)
+                dict["buendnis"] = extract_flag(value)
             except:
                 dict["buendnis"] = ""
             
-        elif entryCtr == 3:
+        elif entry_ctr == 3:
             ms = re.split(zahl_p, value)[1]
-            #Zweitstaat
+            # Zweitstaat
             if ms.startswith('('):
                 ms = ms.replace('(', '').replace(')', '')
                 dict["zweitstaat"] = True
@@ -663,13 +651,13 @@ def readVZ():
                 dict["zweitstaat"] = False
             dict["ms"] = ms
             
-        elif entryCtr == 4:
+        elif entry_ctr == 4:
             bomben = re.split(zahl_p, value)[1]
             if bomben == '-':
                 bomben = '0'
             dict["as"] = bomben
             
-        entryCtr += 1
+        entry_ctr += 1
         i += 1
         
         if i == len(text):
@@ -678,7 +666,7 @@ def readVZ():
     """
     Spielerlose Staaten
     """
-    #"|Spielerlose_Staaten=" suchen
+    # "|Spielerlose_Staaten=" suchen
     found = False
     while True:
         line = text[i]
@@ -692,19 +680,19 @@ def readVZ():
     if not found:
         raise Exception("|Spielerlose_Staaten= nicht gefunden.")
 
-    #Tabelle parsen
+    # Tabelle parsen
     eintrag_p = re.compile(r'\*(\{\{[^\}]+\}\})\s*(\[\[[^]]+\]\])')
     dict = {}
     spielerlos = []
     while True:
         line = text[i]
-        #Tabellenende
+        # Tabellenende
         if line.startswith("|") or i >= len(text):
             break
         if eintrag_p.match(line) is not None:
             tokens = re.split(eintrag_p, line)
-            #dict["flagge"] = extractFlag(tokens[1])
-            names = getStateNames(tokens[2])
+            # dict["flagge"] = extractFlag(tokens[1])
+            names = get_state_names(tokens[2])
             dict["uri"] = names["uri"]
             dict["name"] = names["name"]
             dict["sortname"] = names["sortname"]
@@ -717,7 +705,7 @@ def readVZ():
     """
     Bündnisse
     """
-    #"|Militärbündnisse" suchen
+    # "|Militärbündnisse" suchen
     found = False
     while True:
         line = text[i]
@@ -730,23 +718,21 @@ def readVZ():
         i += 1
     if not found:
         raise Exception("|Militärbündnisse= nicht gefunden.")
-    found = False
     
-    #Tabelle parsen
-    entryCtr = 0
+    # Tabelle parsen
     dict = {}
     bnds = []
     bndeintrag_p = re.compile(r'\*\s*(\[\[[^]]*\]\])\s*\[\[([^]]*)\]\]')
     while True:
         line = text[i]
-        #Tabellenende
+        # Tabellenende
         if line.startswith('{{!}}'):
             i += 1
             break
-        #Tabelleneintrag
+        # Tabelleneintrag
         if bndeintrag_p.match(line) is not None:
             tokens = re.split(bndeintrag_p, line)
-            dict["flagge"] = extractFlag(tokens[1]).strip()
+            dict["flagge"] = extract_flag(tokens[1]).strip()
             dict["name"] = tokens[2].split("|")[0].strip()
             bnds.append(dict.copy())
             dict.clear()
@@ -759,16 +745,16 @@ def readVZ():
             break
     
     return {
-            "staaten": sorted(staaten, key=lambda k: k['sortname']),
-            "buendnisse":bnds,
+            "staaten":    sorted(staaten, key=lambda k: k['sortname']),
+            "buendnisse": bnds,
             "spielerlos": sorted(spielerlos, key=lambda k: k['uri']),
     }
 
 
-"""
-Liest die Infotabellen aller Staaten aus
-"""
-def readStates(vz):
+def read_states(vz):
+    """
+    Liest die Infotabellen aller Staaten aus
+    """
     print("Lese Portal ein")
 
     staaten = []
@@ -784,7 +770,7 @@ def readStates(vz):
     print("Lese Infoboxen ein")
     for staat in staaten:
         article = Article(staat["uri"])
-        article.parseTemplates()
+        article.parse_templates()
         infobox = None
         for t in article.templates:
             if t.name == "Infobox Staat":
@@ -796,10 +782,10 @@ def readStates(vz):
             continue
 
         for key in infobox:
-            infobox[key] = globalizeLinks(infobox[key], staat["uri"])
-        if not infobox == None:
+            infobox[key] = globalize_links(infobox[key], staat["uri"])
+        if infobox is not None:
             staat["infobox"] = infobox
-        #Stellt sicher, dass jeder Staat eine Infobox hat
+        # Stellt sicher, dass jeder Staat eine Infobox hat
         else:
             s = "Warnung: "+staat["uri"]+" hat keine Infobox Staat"
             print(s, file=sys.stderr)
@@ -808,28 +794,28 @@ def readStates(vz):
     return staaten
     
 
-"""
-Nimmt einen Wikilink der Form [[x|y]] oder [[x]] und
-liefert Staatsname, Staats-URI und Sortierkey zurück:
-{ "name":name, "uri":uri, "sortname":sortname }
-"""
-def getStateNames(wikilink):
+def get_state_names(wikilink):
+    """
+    Nimmt einen Wikilink der Form [[x|y]] oder [[x]] und
+    liefert Staatsname, Staats-URI und Sortierkey zurück:
+    { "name":name, "uri":uri, "sortname":sortname }
+    """
     name_p = re.compile(r'\[\[([^]]*)\]\]')
 
     r = {}
-    #Staatsname
+    # Staatsname
     tokens = re.split(name_p, wikilink)
     values = tokens[1].split("|")
     name = values[len(values) - 1]
     name = name.strip()
     r["name"] = name
 
-    #URI; fuer [[x|y]]
+    # URI; fuer [[x|y]]
     r["uri"] = values[0].strip()
 
-    #Name für Sortierung
+    # Name für Sortierung
     sortkey = name
-    for el in sortprefixes:
+    for el in sort_prefixes:
         if sortkey.startswith(el+' '):
             sortkey = sortkey.replace(el, '')
             sortkey = sortkey.strip()
@@ -837,128 +823,136 @@ def getStateNames(wikilink):
     return r
     
 
-"""
-Extrahiert den Dateinamen der Flagge
-aus der Flaggeneinbindung flagcode.
-"""
-def extractFlag(flagcode):
-    #html-Kommentar rauswerfen
+def extract_flag(flagcode):
+    """
+    Extrahiert den Dateinamen der Flagge
+    aus der Flaggeneinbindung flagcode.
+    """
+    # html-Kommentar rauswerfen
     p = re.compile(r'<!--[^>]*-->')
-    flagcode = p.sub("",flagcode)
+    flagcode = p.sub("", flagcode)
 
-    #Flaggenvorlage
+    # Flaggenvorlage
     if re.match(r'\{\{', flagcode) is not None:
-        #flagcode.replace(r"{{", "")
-        #flagcode.replace(r"|40}}", "")
-        mitPx_p = re.compile(r'\{\{(.+?)\|[^}]*\}\}')
-        ohnePx_p = re.compile(r'\{\{(.+?)\}\}')
-        pattern = None
-        if mitPx_p.match(flagcode):
-            pattern = mitPx_p
-        elif ohnePx_p.match(flagcode):
-            pattern = ohnePx_p
+        # flagcode.replace(r"{{", "")
+        # flagcode.replace(r"|40}}", "")
+        mit_px_p = re.compile(r'\{\{(.+?)\|[^}]*\}\}')
+        ohne_px_p = re.compile(r'\{\{(.+?)\}\}')
+
+        if mit_px_p.match(flagcode):
+            pattern = mit_px_p
+        elif ohne_px_p.match(flagcode):
+            pattern = ohne_px_p
         else:
             raise Exception(flagcode + " unbekannter Flaggencode")
 
         flagcode = re.split(pattern, flagcode)[1]
         
-        #Vorlage herunterladen
+        # Vorlage herunterladen
         try:
             response = Article("Vorlage:" + flagcode)
         except:
             raise Exception("konnte nicht öffnen: "+flagcode)
-        text = []
 
         for line in response:
             if re.search(r'include>', line):
                 break
         
-        #Regex
-        for el in imageKeywords:
+        # Regex
+        for el in image_keywords:
             line = line.replace(el, '')
         pattern = re.compile(r"\[\[(.+?)\|.+?\]\]")
         flagcode = re.findall(pattern, line)[0]
 
-    #Normale Bildeinbindung
+    # Normale Bildeinbindung
     elif re.match(r'\[\[', flagcode) is not None:
         flagcode = flagcode.replace('[[', '')
         flagcode = flagcode.replace(']]', '')
-        for el in imageKeywords:
+        for el in image_keywords:
             flagcode = flagcode.replace(el, '')
         values = flagcode.split('|')
         flagcode = values[0]
-    #kaputt
+    # kaputt
     else:
         raise Exception(flagcode + " keine gültige Flagge")
     
-    #Bild-URL extrahieren
+    # Bild-URL extrahieren
     flagcode = urllib.parse.quote(flagcode.strip().replace(' ', '_'))
     response = opener.open(_url + 'api.php?titles=Datei:'+flagcode+'&format=xml&action=query&prop=imageinfo&iiprop=url')
-    response.readline() #Leerzeile ueberspringen
-    xmlRoot = ET.fromstring(response.readline())
+    response.readline()  # Leerzeile ueberspringen
+    xml_root = ET.fromstring(response.readline())
     
-    for element in xmlRoot.iterfind('query/pages/page/imageinfo/ii'):
+    for element in xml_root.iterfind('query/pages/page/imageinfo/ii'):
         return element.attrib['url']
 
 
-"""
-Macht alle lokalen Links in s global.
-Nimmt article als Artikelnamen für die lokalen Links an.
-Berücksichtigt auch Dateilinks, z.B.
-[[Datei:file.png|30px|link=#whatever]]
-"""
-def globalizeLinks(s, article):
-    links = parseLinks(s)
+def globalize_link(link, article):
+    """
+    Macht den Link link global.
+    :param link: Link-dict, wie es aus parse_links() herausfällt.
+    :param article: Artikelname für den lokalen Link
+    :return: Gibt nichts zurück; das dict selbst wird modifiziert.
+    """
+    if link["uri"].startswith("#"):
+        link["uri"] = article + link["uri"]
+    if "filelink" in link and link["filelink"].startswith("#"):
+        link["filelink"] = article + link["filelink"]
+
+
+def globalize_links(s, article):
+    """
+    Macht alle lokalen Links in s global.
+    Nimmt article als Artikelnamen für die lokalen Links an.
+    Berücksichtigt auch Dateilinks, z.B.
+    [[Datei:file.png|30px|link=#whatever]]
+    """
+    links = parse_links(s)
     for link in links:
-        toRepl = buildLink(link)
+        to_repl = build_link(link)
 
-        if link["uri"].startswith("#"):
-            link["uri"] = article + link["uri"]
-        #Datei
-        if "filelink" in link and link["filelink"].startswith("#"):
-            link["filelink"] = article + link["filelink"]
-
-        newLink = buildLink(link)
-        s = s.replace(toRepl, newLink)
+        globalize_link(link, article)
+        new_link = build_link(link)
+        s = s.replace(to_repl, new_link)
         """
-        split = re.split(re.escape(newLink), s)
+        split = re.split(re.escape(new_link), s)
         s = split[0]
         for i in range(1, len(split)):
-            s = newLink + split[i]
+            s = new_link + split[i]
         """
 
     return s
 
-"""
-Gibt alle Wikilinks ([[ ... ]] im String s als Liste von dicts zurück:
 
-Zwingend vorhanden:
-"uri":<Ziel des Links>
-"file":boolescher Wert; gibt an ob Link eine Datei ist
+def parse_links(s):
+    """
+    :return: Gibt alle Wikilinks ([[ ... ]]) im String s als Liste von dicts zurück.
+    Liste ist leer, falls keine Links vorhanden.
 
-Vorhanden, falls im Link vorhanden:
-"filelink":<Link der "belinkten" Datei (|link=<filelink>)>
-"name":<name des Links bzw. Größenangabe der Datei>
-"""
-def parseLinks(s):
+    Zwingend vorhanden:
+    "uri":<Ziel des Links>
+    "file":boolescher Wert; gibt an ob Link eine Datei ist
+
+    Vorhanden, falls im Link vorhanden:
+    "filelink":<Link der "belinkten" Datei (|link=<filelink>)>
+    "name":<name des Links bzw. Größenangabe der Datei>
+    """
     e = re.findall(r"\[\[(.*?)\]\]", s)
     r = []
     for el in e:
         split = re.split("\|", el)
-        dict = {}
-        dict["uri"] = split[0]
+        dict = {"uri": split[0]}
         if len(split) > 1:
             if not split[1].startswith("link="):
                 dict["name"] = split[1]
 
-        #File check
+        # File check
         dict["file"] = False
-        for el in imageKeywords:
+        for el in image_keywords:
             if dict["uri"].startswith(el):
                 dict["file"] = True
                 break
 
-        #File link
+        # File link
         if dict["file"] and len(split) > 1:
             for i in range(1, len(split)):
                 if split[i].startswith("link="):
@@ -970,69 +964,83 @@ def parseLinks(s):
 
     return r
 
-"""
-Baut einen Link-String aus einem dict wie in parseLinks() zusammen.
-"""
-def buildLink(link):
+
+def build_link(link, name=None):
+    """
+    Baut einen Link-String aus einem dict wie in parse_links() zusammen.
+    :param link: Link, der aus parse_links() rausgefallen ist
+    :param name: Name des Links, falls abweichend
+    :return: Linkstring für Mediawiki (etwa [[Berge|Staat#Geographie]])
+    """
     r = "[[" + link["uri"]
-    if "name" in link:
-        r += "|" + link["name"]
+
+    if name is None and "name" in link:
+        name = link["name"]
+    if name is not None:
+        r += "|" + name
 
     if link["file"] and "filelink" in link:
         r += "|link=" + link["filelink"]
 
     return r + "]]"
 
-"""
-Ersetzt alle Wikilinks im String s durch den Namen des Links,
-d.h. entfernt alle Wikilinks.
-"""
-def removeLinks(s):
+
+def remove_links(s):
+    """
+    Ersetzt alle Wikilinks im String s durch den Namen des Links,
+    d.h. entfernt alle Wikilinks.
+    """
     p = re.compile(r"\[\[.*?\]\]")
 
-    #schrittweise jeden Links entfernen
+    # schrittweise jeden Links entfernen
     while True:
         link = p.search(s)
         if link is None:
             break
         link = link.group()
 
-        parsedLink = parseLinks(link)[0]
-        toDel = re.split(parsedLink["name"], link)
-        for el in toDel:
-            s = re.sub(re.escape(el), "", s, count=1)
+        parsed_link = parse_links(link)[0]
+        parts = s.split(link, maxsplit=1)
+        if "name" in parsed_link:
+            name = parsed_link["name"]
+        else:
+            name = parsed_link["uri"].split("#")[0]
+            if name == "":
+                raise Exception("link "+name+"is not gobal")
+        s = parts[0] + name + parts[1]
 
     return s
 
-"""
-Schreibt den Text text in den Artikel article.
-"""
-def editArticle(article, text, section=None):
+
+def edit_article(article, text, section=None):
+    """
+    Schreibt den Text text in den Artikel article.
+    """
     print("Bearbeite "+article)
 
-    #Edit-Token lesen
-    response = opener.open(_url + 'api.php?action=query&format=xml&titles=' + urllib.parse.quote(article) + '&meta=tokens')
-    #return response
+    # Edit-Token lesen
+    url = _url + 'api.php?action=query&format=xml&titles=' + urllib.parse.quote(article) + '&meta=tokens'
+    response = opener.open(url)
+    # return response
     response.readline()
-    xmlRoot = ET.fromstring(response.readline())
-    editToken = xmlRoot.find('query').find('tokens').attrib['csrftoken']
+    xml_root = ET.fromstring(response.readline())
+    edit_token = xml_root.find('query').find('tokens').attrib['csrftoken']
     
-    #Seite bearbeiten
-    query_args = { 'text':text, 'token':editToken }
+    # Seite bearbeiten
+    query_args = {'text': text, 'token': edit_token}
     if section is not None:
         query_args['section'] = section
     query_url = _url + 'api.php?action=edit&bot&format=xml&title=' + urllib.parse.quote(article)
     response = opener.open(query_url, urllib.parse.urlencode(query_args).encode('utf8'))
 
-    #Result auslesen
-    return response
+    # Result auslesen
     response.readline()
-    xmlRoot = ET.fromstring(response.readline())
-    if xmlRoot.find('edit').attrib['result'] != 'Success':
+    xml_root = ET.fromstring(response.readline())
+    if xml_root.find('edit').attrib['result'] != 'Success':
         raise Exception('edit not successful')
 
 
-def buildQuery(args):
+def build_query(args):
     qry = "?"
     for arg in args:
         if qry == "?":
@@ -1042,17 +1050,16 @@ def buildQuery(args):
     return qry + "&format=xml&action=query"
 
 
-"""
-Schickt das Query bestehend aus *args ans Wiki.
-format=xml und action=query muss nicht angegeben werden.
-Gibt den xml-elementtree der Antwort zurück.
-Beispiel: sendQuery("titles=Flugghingen","redirects")
-"""
-def sendQuery(*args):
-    qry = buildQuery(args)
+def send_query(*args):
+    """
+    Schickt das Query bestehend aus *args ans Wiki.
+    format=xml und action=query muss nicht angegeben werden.
+    Gibt den xml-elementtree der Antwort zurück.
+    Beispiel: sendQuery("titles=Flugghingen","redirects")
+    """
+    qry = build_query(args)
     print(qry)
     response = opener.open(_url+"api.php"+qry)
-    l = response.readline()
+    response.readline()
     l = response.readline()
     return ET.fromstring(l)
-    

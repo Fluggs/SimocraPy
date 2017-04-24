@@ -24,9 +24,9 @@ class Command(BaseCommand):
         Fuehrt das Kommando aus.
         """
         wiki.login()
-        vz = wiki.readVZ()
+        vz = wiki.read_vz()
 
-        staaten = wiki.readStates(vz)
+        staaten = wiki.read_states(vz)
         bnds = vz["buendnisse"]
         
         """
@@ -65,7 +65,7 @@ class Command(BaseCommand):
             staat.nummer = i
             staat.name = state["name"]
             flag = "[["+state["infobox"]["Flagge"]+"]]"
-            staat.flagge = wiki.extractFlag(flag)
+            staat.flagge = wiki.extract_flag(flag)
             staat.spieler = state["spieler"]
             staat.ms = state["ms"]
             staat.bomben = state["as"]

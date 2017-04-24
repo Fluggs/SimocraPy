@@ -89,6 +89,7 @@ def nice_floatstr(n):
 
 
 def extract_waehrung(s):
+    print("orig: "+s)
     """
     Extrahiert den Währungsnamen aus Währungsstrings
     aus Infoboxen, zB [[Staat#Währung|Ziegen (Z)]] => Ziegen
@@ -105,9 +106,63 @@ def extract_waehrung(s):
             break
 
     # Notwendige Replacementliste
+    print(s)
     s = s.replace('<br>', ' ')
    
     return re.split(r'([^({\d=]*)', s)[1].strip()
+
+
+def normalize_waehrung2(s, article):
+    """
+
+    :param s: Währungsstring, der zu normalisieren ist
+    :param article: Artikelname, in dem der Währungsstring aufgetaucht ist (für Linkglobalisierung)
+    :return: {"string": Währungsstring mit Links, "name": Name der Währung}; None falls s leerer String ist
+    """
+
+    links = wiki.parse_links(s)
+    link = None
+    if len(links) > 0:
+        link = links[0]
+        wiki.globalize_link(link, article)
+
+    currency = s.strip()
+    if currency == "":
+        return None
+
+    currency = wiki.remove_links(currency)
+
+    split_list = [",", ";", "(", "sowie", "'", "<br>",]
+    for divider in split_list:
+        parts = currency.split(divider)
+        for part in parts:
+            part = part.strip()
+            if part != "":
+                currency = part
+                break
+            raise Exception('we just divided a currency string and got nothing out of it, should not happen:\n"'+s+'"')
+
+    # Währungssstring mit Link wieder zusammenbauen
+    r = {"name": currency}
+    if link is None:
+        r["string"] = r["name"]
+    if link is not None and "name" in link:
+        linkname = link["name"]
+    elif link is not None:
+        linkname = link["uri"].split("#")[0]
+    else:
+        r["string"] = r["name"]
+        return r
+
+    if linkname in currency:
+        parts = currency.split(linkname, maxsplit=1)
+        linkstring = wiki.build_link(link)
+        r["string"] = parts[0] + linkstring + parts[1]
+
+    else:
+        r["string"] = wiki.build_link(link, name=currency)
+
+    return r
 
 
 def normalize_waehrung(s):
@@ -258,10 +313,10 @@ def normalize_kfz(s):
 
     # Bilder skalieren
     size = 40
-    links = wiki.parseLinks(s)
+    links = wiki.parse_links(s)
     for link in links:
         if link["file"]:
-            to_repl = wiki.buildLink(link)
+            to_repl = wiki.build_link(link)
             new_link = "[["+link["uri"]
             new_link += "|" + str(size) + "px"
             if "filelink" in link:
@@ -391,10 +446,12 @@ def sum_up_waehrung(w, f):
         "anz":anzahl
       }, x3
     ]
+    :param w Liste aller Währungen
+    :param f f(w) wie oben
     """
     erg = []
     for el in w:
-        # Währung in erg suchen; bei Fund inkrementieren
+        # Währungen in erg hinein zusammenaddieren
         found = False
         for i in range(0, len(erg)):
             if el["name"] == erg[i]["name"]:
@@ -500,15 +557,19 @@ def update_article(staaten):
         # Währung
         if "Währung" in staat["infobox"]:
             waehrung = staat["infobox"]["Währung"]
-            if waehrung is None or re.match(r'^\s*$', waehrung) is not None:
+            if waehrung is None:
                 waehrung = unknown
             else:
-                waehrung = normalize_waehrung(waehrung)
-                d = {
-                    "name": extract_waehrung(waehrung),
-                    "ew": ew_int,
-                }
-                gesamt["waehrung"].append(d)
+                waehrung = normalize_waehrung2(waehrung, staat["uri"])
+                if waehrung is None:
+                    waehrung = unknown
+                else:
+                    d = {
+                        "name": waehrung["name"],
+                        "ew": ew_int,
+                    }
+                    gesamt["waehrung"].append(d)
+                    waehrung = waehrung["string"]
         else:
             waehrung = unknown
 
@@ -625,7 +686,7 @@ def update_article(staaten):
     text += "</onlyinclude>\n"
     text += "[[Kategorie:Internationales Amt für Statistiken]]"
     text += "[[Kategorie:Fluggbot]]"
-    wiki.editArticle("Vorlage:IAS", text)
+    wiki.edit_article("Vorlage:IAS", text)
 
     # Staaten zählen
     bespielt = 0
@@ -643,7 +704,7 @@ def update_article(staaten):
     text += "zurück. Gezählt werden alle Staaten des Planeten.<br>\nSie wird auf "
     text += "Basis der Staatenliste im [[Wikocracy:Portal|Portal]] berechnet.\n\n"
     text += "[[Kategorie:Fluggbot]]"
-    wiki.editArticle("Vorlage:Anzahl_Staaten", text)
+    wiki.edit_article("Vorlage:Anzahl_Staaten", text)
 
     # Vorlage:Anzahl Freie Staaten
     text = "<onlyinclude><includeonly>" + str(spielerlos)
@@ -652,7 +713,7 @@ def update_article(staaten):
     text += "Simocracy zurück. Gezählt werden alle Staaten des Planeten.<br>\nSie "
     text += "wird auf Basis der Staatenliste im [[Wikocracy:Portal|Portal]] berechnet."
     text += "\n\n[[Kategorie:Fluggbot]]"
-    wiki.editArticle("Vorlage:Anzahl_Freie_Staaten", text)
+    wiki.edit_article("Vorlage:Anzahl_Freie_Staaten", text)
 
     # Vorlage:Anzahl Bespielte Staaten
     text = "<onlyinclude><includeonly>" + str(bespielt)
@@ -660,7 +721,7 @@ def update_article(staaten):
     text += "Diese Vorlage gibt die aktuelle Anzahl der bespielten Staaten in "
     text += "Simocracy zurück.<br>\nSie wird auf Basis der Staatenliste im "
     text += "[[Wikocracy:Portal|Portal]] berechnet.\n\n[[Kategorie:Fluggbot]]"
-    wiki.editArticle("Vorlage:Anzahl_Bespielte_Staaten", text)
+    wiki.edit_article("Vorlage:Anzahl_Bespielte_Staaten", text)
 
     # Vorlage:Anzahl Spieler
     spielerliste = []
@@ -686,4 +747,10 @@ def update_article(staaten):
     for spieler in spielerliste:
         text += spieler + "<br>\n"
     text += "\n[[Kategorie:Fluggbot]]"
-    wiki.editArticle("Vorlage:Anzahl_Spieler", text)
+    wiki.edit_article("Vorlage:Anzahl_Spieler", text)
+
+if __name__ == "__main__":
+    wiki.login()
+    vz = wiki.read_vz()
+    staaten = wiki.read_states(vz)
+    update_article(staaten)

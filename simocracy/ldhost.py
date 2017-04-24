@@ -23,7 +23,7 @@ notif = r"{{LD-Host}}"
 def main():
     opener = wiki.login(wiki.username, wiki.password)
 
-    for p in wiki.allPages(opener, resume="speed"):
+    for p in wiki.all_pages(opener, resume="speed"):
         doIt(p, opener)
 
 #Ersetzt alle Vorkommnisse von sub in s durch repl.
@@ -91,7 +91,7 @@ def doIt(article, opener):
 
         #Schreiben
         if not simulation:
-            wiki.editArticle(article, text, opener)
+            wiki.edit_article(article, text, opener)
             print("Done: "+article)
 
         print("========================================================\n")
