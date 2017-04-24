@@ -131,13 +131,15 @@ def normalize_waehrung2(s, article):
         return None
 
     currency = wiki.remove_links(currency)
+    print(currency)
 
-    split_list = [",", ";", "(", "sowie", "'", "<br>",]
+    split_list = [",", ";", "(", "<", "sowie", "'", "<br>",]
     for divider in split_list:
         parts = currency.split(divider)
         for part in parts:
             part = part.strip()
             if part != "":
+                print("part: "+part)
                 currency = part
                 break
             raise Exception('we just divided a currency string and got nothing out of it, should not happen:\n"'+s+'"')
