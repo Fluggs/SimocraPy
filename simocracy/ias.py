@@ -644,7 +644,7 @@ def update_article(staaten):
 
     text = pre + text_stats
     text += "\n|}\n"
-    text += "|-|\nWeitereInformationen="
+    text += "|-|\nWeitere Informationen="
     text += "{{IAS Anfang Info}}\n"
     text += text_info
     text += "|}\n"
