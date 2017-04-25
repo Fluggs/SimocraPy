@@ -132,7 +132,7 @@ def normalize_waehrung2(s, article):
 
     currency = wiki.remove_links(currency)
 
-    split_list = [",", ";", "(", "=", "sowie", "'", "<br>", ]
+    split_list = [",", ";", "(", "=", "sowie", "'", "<br>", "/"]
     for divider in split_list:
         parts = currency.split(divider)
         found = False
@@ -140,6 +140,8 @@ def normalize_waehrung2(s, article):
             part = part.strip()
             if part != "":
                 currency = part
+                if divider == "(" and parts[0] == "":
+                    currency = "(" + currency
                 found = True
                 break
         if not found:
@@ -149,11 +151,20 @@ def normalize_waehrung2(s, article):
     p = r"\d+$"
     parts = currency.split(" ")
     todel = []
+    currency_symbols = []
     for el in parts:
-        if re.match(p, s):
+        if re.match(p, el):
             todel.append(el)
+        elif len(el) < 2:
+            currency_symbols.append(el)
     for el in todel:
         parts.remove(el)
+
+    # Währungssymbole rausnehmen
+    while len(currency_symbols) > 0 and len(parts) > 1:
+        parts.remove(currency_symbols[-1])
+        currency_symbols.remove(currency_symbols[-1])
+
     # wieder zusammenbauen
     currency = ""
     for el in parts:
