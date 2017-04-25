@@ -88,33 +88,9 @@ def nice_floatstr(n):
     return r
 
 
-def extract_waehrung(s):
-    print("orig: "+s)
+def normalize_waehrung(s, article):
     """
-    Extrahiert den Währungsnamen aus Währungsstrings
-    aus Infoboxen, zB [[Staat#Währung|Ziegen (Z)]] => Ziegen
-    """
-    # Links auflösen
-    p = re.compile(r'\[\[([^]]*)\]\]')
-    while True:
-        m = re.search(p, s)
-        if m:
-            tokens = m.group(1).split('|')
-            repl = tokens[len(tokens) - 1]
-            s = p.sub(repl, s, count=1)
-        else:
-            break
-
-    # Notwendige Replacementliste
-    print(s)
-    s = s.replace('<br>', ' ')
-   
-    return re.split(r'([^({\d=]*)', s)[1].strip()
-
-
-def normalize_waehrung2(s, article):
-    """
-
+    Normalisiert eine Währungsangabe.
     :param s: Währungsstring, der zu normalisieren ist
     :param article: Artikelname, in dem der Währungsstring aufgetaucht ist (für Linkglobalisierung)
     :return: {"string": Währungsstring mit Links, "name": Name der Währung}; None falls s leerer String ist
@@ -165,7 +141,7 @@ def normalize_waehrung2(s, article):
         parts.remove(currency_symbols[-1])
         currency_symbols.remove(currency_symbols[-1])
 
-    # wieder zusammenbauen
+    # Währungsangabe wieder zusammenbauen
     currency = ""
     for el in parts:
         currency += el + " "
@@ -192,45 +168,6 @@ def normalize_waehrung2(s, article):
         r["string"] = wiki.build_link(link, name=currency)
 
     return r
-
-
-def normalize_waehrung(s):
-    """
-    Normalisiert die Währungsangabe
-    """
-    # Links übernehmen; kriegt auch Oranje-[[Gulden]] mit
-    # Match wird dafür in Teile zerteilt
-    p = re.compile(r'(?P<pre>[^\s]*)\[\[(?P<in>[^]]*)\]\](?P<post>[^\s]*)')
-    m = re.search(p, s)
-    if m:
-        s = m.groupdict()
-    else:
-        s = {"pre": s}
-
-    # Abhacken vor bestimmten Zeichen
-    for part in s:
-        charlist = [r'\(', r'<', r'\{', r'/', r',', r';']
-        for c in charlist:
-            m = re.search(r'([^'+c+r']*)', s[part])
-            if m:
-                s[part] = m.group().strip()
-
-    # Wieder zusammensetzen
-    r = s["pre"]
-    if "in" in s:
-        r = r + "[[" + s["in"] + "]]"
-    if "post" in s:
-        r += s["post"]
-
-    s = r
-
-    # "1 Ziege = 4 Beine" =>  "Ziege"
-    p = r'\d+\s*([^\s]*)'
-    m = re.match(p, s)
-    if m:
-        s = m.group(1)
-
-    return s
 
 
 def rem_brackets(s):
@@ -589,7 +526,7 @@ def update_article(staaten):
             if waehrung is None:
                 waehrung = unknown
             else:
-                waehrung = normalize_waehrung2(waehrung, staat["uri"])
+                waehrung = normalize_waehrung(waehrung, staat["uri"])
                 if waehrung is None:
                     waehrung = unknown
                 else:
