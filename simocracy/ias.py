@@ -107,6 +107,7 @@ def normalize_waehrung(s, article):
         return None
 
     currency = wiki.remove_links(currency)
+    print(currency)
 
     split_list = [",", ";", "(", "=", "sowie", "'", "<br>", "/"]
     for divider in split_list:
